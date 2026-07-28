@@ -7,6 +7,9 @@ let state = {
 document.addEventListener("DOMContentLoaded", async () => {
     await loadSamples();
     bindEvents();
+    setupKeyboardShortcuts();
+    setupDragDrop();
+    setupInputMethodTabs();
 });
 
 /* Events */
@@ -393,8 +396,149 @@ function exportHTML() {
 }
 
 function showStatus(msg, type) {
-    const el = document.getElementById("status-msg");
+    const el = document.getElementById("status-notification");
     el.textContent = msg;
-    el.className = `status-msg ${type} show`;
+    el.className = `status-notification ${type} show`;
     setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+/* Phase 2: JSON Prettify */
+function prettifyJSON(textareaId) {
+    const textarea = document.getElementById(textareaId);
+    try {
+        const parsed = JSON.parse(textarea.value);
+        textarea.value = JSON.stringify(parsed, null, 2);
+        showStatus("✨ JSON formatted", "success");
+    } catch (err) {
+        showStatus("❌ Invalid JSON: " + err.message, "error");
+    }
+}
+
+/* Phase 2: Keyboard Shortcuts */
+function setupKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            document.getElementById("analyze-btn").click();
+        }
+    });
+}
+
+/* Phase 2: Drag & Drop */
+function setupDragDrop() {
+    ["request", "response"].forEach(mode => {
+        const dropzone = document.getElementById(`dropzone-${mode}`);
+        if (!dropzone) return;
+
+        const fileInput = document.getElementById(`${mode}-file`);
+
+        dropzone.addEventListener("click", () => fileInput.click());
+
+        ["dragenter", "dragover", "dragleave", "drop"].forEach(event => {
+            dropzone.addEventListener(event, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        ["dragenter", "dragover"].forEach(event => {
+            dropzone.addEventListener(event, () => {
+                dropzone.classList.add("drag-over");
+            });
+        });
+
+        ["dragleave", "drop"].forEach(event => {
+            dropzone.addEventListener(event, () => {
+                dropzone.classList.remove("drag-over");
+            });
+        });
+
+        dropzone.addEventListener("drop", (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                fileInput.files = files;
+                handleFileUpload({target: fileInput}, mode);
+            }
+        });
+    });
+}
+
+/* Phase 2: Input Method Tabs */
+function setupInputMethodTabs() {
+    document.querySelectorAll(".input-method-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            const mode = tab.dataset.mode;
+            const method = tab.dataset.method;
+
+            // Update active tab
+            document.querySelectorAll(`[data-mode="${mode}"]`).forEach(t => {
+                t.classList.remove("active");
+            });
+            tab.classList.add("active");
+
+            // Update visible content
+            document.querySelectorAll(`#method-*-${mode}`).forEach(el => {
+                el.classList.remove("active");
+            });
+            const content = document.getElementById(`method-${method}-${mode}`);
+            if (content) content.classList.add("active");
+        });
+    });
+
+    // Populate samples with pills
+    populateSamplePills("request");
+    populateSamplePills("response");
+}
+
+function populateSamplePills(mode) {
+    const grid = document.getElementById(`samples-${mode}-grid`);
+    if (!grid) return;
+
+    const samples = state.samples.filter(s => s.kind === mode);
+    grid.innerHTML = samples.map(s =>
+        `<button class="sample-pill" onclick="loadSampleByName('${s.name}', '${mode}')">
+            📋 ${s.name.replace('sample_', '').replace(`.json`, '')}
+        </button>`
+    ).join("");
+}
+
+function loadSampleByName(sampleName, mode) {
+    const sample = state.samples.find(s => s.name === sampleName);
+    if (!sample) {
+        showStatus("Sample not found", "error");
+        return;
+    }
+    document.getElementById(`${mode}-raw`).value = sample.content;
+    showStatus(`✅ Loaded ${sampleName}`, "success");
+}
+
+/* Phase 2: URL Fetcher */
+async function fetchURL(mode) {
+    const urlInput = document.getElementById(`${mode}-url`);
+    const url = urlInput.value.trim();
+
+    if (!url) {
+        showStatus("Enter a URL first", "error");
+        return;
+    }
+
+    try {
+        showStatus("🌐 Fetching...", "info");
+        const response = await fetch("/fetch/url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        if (data.content) {
+            document.getElementById(`${mode}-raw`).value = data.content;
+            showStatus("✅ Fetched successfully", "success");
+        } else {
+            showStatus("No content received", "error");
+        }
+    } catch (err) {
+        showStatus(`❌ Fetch failed: ${err.message}`, "error");
+    }
 }

@@ -65,39 +65,103 @@
 
                     <!-- Request Mode -->
                     <div class="mode-content active" id="input-request">
-                        <div class="input-container">
-                            <label class="input-label">Bid Request JSON</label>
-                            <textarea id="request-raw" class="code-input" placeholder='{"id":"req-1","imp":[{"id":"1","video":{"w":1920,"h":1080},"bidfloor":18.5}]}'></textarea>
+                        <!-- Input Method Tabs -->
+                        <div class="input-method-tabs">
+                            <button class="input-method-tab active" data-method="paste" data-mode="request">📝 Paste</button>
+                            <button class="input-method-tab" data-method="upload" data-mode="request">📁 Upload</button>
+                            <button class="input-method-tab" data-method="url" data-mode="request">🌐 URL</button>
+                            <button class="input-method-tab" data-method="samples" data-mode="request">📋 Samples</button>
                         </div>
 
-                        <div class="action-row">
-                            <button class="btn btn-secondary" onclick="document.getElementById('request-file').click()">
-                                📁 Upload File
-                            </button>
-                            <select id="request-sample" class="select-input">
-                                <option value="">📋 Sample...</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="loadSample('request')">Load</button>
-                            <input id="request-file" type="file" style="display:none;" accept=".json,.txt,.log">
+                        <!-- Paste -->
+                        <div class="input-method-content active" id="method-paste-request">
+                            <div class="input-container">
+                                <div class="input-header">
+                                    <label class="input-label">Bid Request JSON</label>
+                                    <button class="btn btn-small" onclick="prettifyJSON('request-raw')">✨ Prettify</button>
+                                </div>
+                                <textarea id="request-raw" class="code-input" placeholder='{"id":"req-1","imp":[...]}'></textarea>
+                                <div class="input-hint">💡 Press Ctrl+Enter to analyze</div>
+                            </div>
+                        </div>
+
+                        <!-- Upload -->
+                        <div class="input-method-content" id="method-upload-request">
+                            <div class="dropzone" id="dropzone-request">
+                                <div class="dropzone-content">
+                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-text">Drop JSON file here or click to browse</div>
+                                    <div class="dropzone-hint">Accepts .json, .txt, .log files</div>
+                                </div>
+                                <input id="request-file" type="file" style="display:none;" accept=".json,.txt,.log">
+                            </div>
+                        </div>
+
+                        <!-- URL -->
+                        <div class="input-method-content" id="method-url-request">
+                            <div class="input-container">
+                                <label class="input-label">Fetch from URL</label>
+                                <div class="url-input-group">
+                                    <input id="request-url" type="url" class="select-input" placeholder="https://api.example.com/request.json">
+                                    <button class="btn btn-primary" onclick="fetchURL('request')">🌐 Fetch</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Samples -->
+                        <div class="input-method-content" id="method-samples-request">
+                            <div class="samples-grid" id="samples-request-grid"></div>
                         </div>
                     </div>
 
                     <!-- Response Mode -->
                     <div class="mode-content" id="input-response" style="display:none;">
-                        <div class="input-container">
-                            <label class="input-label">Bid Response JSON</label>
-                            <textarea id="response-raw" class="code-input" placeholder='{"id":"req-1","seatbid":[{"seat":"dsp","bid":[{"id":"bid-1","impid":"1","price":24.25,"adid":"ad-123"}]}]}'></textarea>
+                        <!-- Input Method Tabs -->
+                        <div class="input-method-tabs">
+                            <button class="input-method-tab active" data-method="paste" data-mode="response">📝 Paste</button>
+                            <button class="input-method-tab" data-method="upload" data-mode="response">📁 Upload</button>
+                            <button class="input-method-tab" data-method="url" data-mode="response">🌐 URL</button>
+                            <button class="input-method-tab" data-method="samples" data-mode="response">📋 Samples</button>
                         </div>
 
-                        <div class="action-row">
-                            <button class="btn btn-secondary" onclick="document.getElementById('response-file').click()">
-                                📁 Upload File
-                            </button>
-                            <select id="response-sample" class="select-input">
-                                <option value="">📋 Sample...</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="loadSample('response')">Load</button>
-                            <input id="response-file" type="file" style="display:none;" accept=".json,.txt,.log">
+                        <!-- Paste -->
+                        <div class="input-method-content active" id="method-paste-response">
+                            <div class="input-container">
+                                <div class="input-header">
+                                    <label class="input-label">Bid Response JSON</label>
+                                    <button class="btn btn-small" onclick="prettifyJSON('response-raw')">✨ Prettify</button>
+                                </div>
+                                <textarea id="response-raw" class="code-input" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
+                                <div class="input-hint">💡 Press Ctrl+Enter to analyze</div>
+                            </div>
+                        </div>
+
+                        <!-- Upload -->
+                        <div class="input-method-content" id="method-upload-response">
+                            <div class="dropzone" id="dropzone-response">
+                                <div class="dropzone-content">
+                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-text">Drop JSON file here or click to browse</div>
+                                    <div class="dropzone-hint">Accepts .json, .txt, .log files</div>
+                                </div>
+                                <input id="response-file" type="file" style="display:none;" accept=".json,.txt,.log">
+                            </div>
+                        </div>
+
+                        <!-- URL -->
+                        <div class="input-method-content" id="method-url-response">
+                            <div class="input-container">
+                                <label class="input-label">Fetch from URL</label>
+                                <div class="url-input-group">
+                                    <input id="response-url" type="url" class="select-input" placeholder="https://api.example.com/response.json">
+                                    <button class="btn btn-primary" onclick="fetchURL('response')">🌐 Fetch</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Samples -->
+                        <div class="input-method-content" id="method-samples-response">
+                            <div class="samples-grid" id="samples-response-grid"></div>
                         </div>
                     </div>
 
