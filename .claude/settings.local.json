@@ -24,7 +24,8 @@
       "Bash(grep -v \"//\")",
       "Bash(git commit -m 'Phase 2 bugfix: Tab switching CSS and JavaScript initialization *)",
       "Bash(node -c app/static/app.js)",
-      "Bash(git commit -m 'Phase 3: Visual Design & KPI Metrics Enhancements *)"
+      "Bash(git commit -m 'Phase 3: Visual Design & KPI Metrics Enhancements *)",
+      "Bash(git commit -m 'Phase 4: Theme & Export Tools - Enterprise Features *)"
     ]
   }
 }

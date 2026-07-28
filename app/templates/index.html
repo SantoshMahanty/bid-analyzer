@@ -21,7 +21,10 @@
                         <p>OpenRTB Inspector</p>
                     </div>
                 </div>
-                <a href="/tutorial" class="header-link">📖 Tutorial</a>
+                <div class="header-actions">
+                    <button class="header-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
+                    <a href="/tutorial" class="header-link">📖 Tutorial</a>
+                </div>
             </div>
         </header>
 
@@ -240,6 +243,8 @@
                             <button class="btn btn-secondary" onclick="copyResults()">📋 Copy</button>
                             <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
                             <button class="btn btn-secondary" onclick="exportHTML()">💾 HTML</button>
+                            <button class="btn btn-secondary" onclick="exportCSV()">📊 CSV</button>
+                            <button class="btn btn-secondary" onclick="exportPDF()">📑 PDF</button>
                         </div>
                     </div>
                 </div>

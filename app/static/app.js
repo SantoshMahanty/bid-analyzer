@@ -740,3 +740,212 @@ async function fetchURL(mode) {
         showStatus(`❌ Fetch failed: ${err.message}`, "error");
     }
 }
+
+/* Phase 4: Theme & Export Tools */
+
+// Theme Management
+function initializeTheme() {
+    const themeToggle = document.getElementById('theme-toggle');
+    if (!themeToggle) return;
+
+    // Check saved theme preference or system preference
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+
+    applyTheme(theme);
+    themeToggle.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+    });
+}
+
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('theme-toggle').textContent = '☀️';
+        localStorage.setItem('theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.getElementById('theme-toggle').textContent = '🌙';
+        localStorage.setItem('theme', 'light');
+    }
+}
+
+// Advanced Export Functions
+function exportCSV() {
+    if (!state.report) {
+        showStatus("No analysis results to export", "error");
+        return;
+    }
+
+    const report = state.report;
+    const rows = [];
+
+    // Headers
+    rows.push(['Metric', 'Value'].join(','));
+
+    // Request data
+    if (report.request?.summary) {
+        rows.push(['--- REQUEST DATA ---', ''].join(','));
+        Object.entries(report.request.summary).forEach(([k, v]) => {
+            rows.push([k, typeof v === 'object' ? JSON.stringify(v) : v].join(','));
+        });
+    }
+
+    // Response data
+    if (report.response?.summary) {
+        rows.push(['--- RESPONSE DATA ---', ''].join(','));
+        Object.entries(report.response.summary).forEach(([k, v]) => {
+            rows.push([k, typeof v === 'object' ? JSON.stringify(v) : v].join(','));
+        });
+    }
+
+    // Insights
+    if (report.request?.human_explanations?.length) {
+        rows.push(['--- INSIGHTS ---', ''].join(','));
+        report.request.human_explanations.forEach((exp, i) => {
+            rows.push([`Insight ${i+1}`, exp].join(','));
+        });
+    }
+
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bid-analysis-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    showStatus("✅ CSV exported successfully", "success");
+}
+
+function exportPDF() {
+    if (!state.report) {
+        showStatus("No analysis results to export", "error");
+        return;
+    }
+
+    // For PDF export, we'll generate styled HTML and let browser handle it
+    const htmlContent = generatePDFHTML();
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bid-analysis-${new Date().toISOString().slice(0,10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    showStatus("✅ Report exported (open in browser and print as PDF)", "success");
+}
+
+function generatePDFHTML() {
+    const report = state.report;
+    const timestamp = new Date().toLocaleString();
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bid Analysis Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1f2937; line-height: 1.6; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; }
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .meta { font-size: 0.9rem; opacity: 0.9; }
+        .section { margin-bottom: 2rem; page-break-inside: avoid; }
+        .section h2 { font-size: 1.5rem; color: #667eea; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e5e7eb; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem; }
+        .kpi-card { background: #f9fafb; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea; }
+        .kpi-label { font-size: 0.85rem; color: #6b7280; text-transform: uppercase; }
+        .kpi-value { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-top: 0.5rem; }
+        .insight { background: #f0fdf4; padding: 1rem; margin-bottom: 0.75rem; border-left: 4px solid #10b981; border-radius: 4px; }
+        .insight-label { color: #047857; font-weight: 600; font-size: 0.9rem; }
+        .insight-text { color: #1f2937; margin-top: 0.5rem; }
+        pre { background: #f9fafb; padding: 1rem; overflow-x: auto; border-radius: 4px; font-size: 0.85rem; }
+        @media print { body { background: white; } .container { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Bid Analysis Report</h1>
+            <div class="meta">Generated: ${timestamp}</div>
+        </div>
+
+        ${report.request ? `
+        <div class="section">
+            <h2>📋 Request Analysis</h2>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Request ID</div>
+                    <div class="kpi-value">${report.request.summary?.request_id?.substring(0, 12) || '—'}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Format</div>
+                    <div class="kpi-value">${report.request.summary?.ad_format || '—'}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Impressions</div>
+                    <div class="kpi-value">${report.request.summary?.impression_count || 1}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">CTV Score</div>
+                    <div class="kpi-value">${report.request.request_type_detection?.ctv_score || 0}/20</div>
+                </div>
+            </div>
+            ${report.request.human_explanations?.length ? `
+            <h3 style="margin-top: 1.5rem; color: #1f2937; margin-bottom: 1rem;">Key Insights</h3>
+            ${report.request.human_explanations.map((exp, i) => `
+            <div class="insight">
+                <div class="insight-label">💡 Insight ${i+1}</div>
+                <div class="insight-text">${exp}</div>
+            </div>
+            `).join('')}
+            ` : ''}
+        </div>
+        ` : ''}
+
+        ${report.response ? `
+        <div class="section">
+            <h2>📨 Response Analysis</h2>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Bids</div>
+                    <div class="kpi-value">${report.response.summary?.bid_count || 0}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Seats</div>
+                    <div class="kpi-value">${report.response.summary?.seat_count || 0}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Max Bid</div>
+                    <div class="kpi-value">$${report.response.summary?.max_bid_price || '—'}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Avg Bid</div>
+                    <div class="kpi-value">$${report.response.summary?.avg_bid_price || '—'}</div>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+            <h2>📄 Raw Data</h2>
+            <pre>${JSON.stringify(report, null, 2)}</pre>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+// Initialize Phase 4 on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
+});
