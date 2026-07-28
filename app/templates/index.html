@@ -20,7 +20,7 @@
                     <p class="header-subtitle">OpenRTB Inspector</p>
                 </div>
                 <div class="header-right">
-                    <button class="header-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
+                    <button class="header-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Toggle dark mode">🌙</button>
                     <a href="/tutorial" class="header-link">📖 Tutorial</a>
                 </div>
             </div>
@@ -30,28 +30,19 @@
         <main class="main">
             <!-- Mode Selector -->
             <div class="mode-selector">
-                <div class="selector-label">Choose Your Mode</div>
+                <span class="selector-label">Mode</span>
                 <div class="selector-options">
-                    <button class="mode-option active" data-mode="request">
+                    <button class="mode-option active" data-mode="request" title="Analyze bid request">
                         <span class="mode-icon">🔍</span>
-                        <div>
-                            <div class="mode-name">Request</div>
-                            <div class="mode-desc">Analyze bid request</div>
-                        </div>
+                        <span class="mode-name">Request</span>
                     </button>
-                    <button class="mode-option" data-mode="response">
+                    <button class="mode-option" data-mode="response" title="Analyze bid response">
                         <span class="mode-icon">📨</span>
-                        <div>
-                            <div class="mode-name">Response</div>
-                            <div class="mode-desc">Analyze bid response</div>
-                        </div>
+                        <span class="mode-name">Response</span>
                     </button>
-                    <button class="mode-option" data-mode="compare">
+                    <button class="mode-option" data-mode="compare" title="Compare request vs response">
                         <span class="mode-icon">⚖️</span>
-                        <div>
-                            <div class="mode-name">Compare</div>
-                            <div class="mode-desc">Request vs Response</div>
-                        </div>
+                        <span class="mode-name">Compare</span>
                     </button>
                 </div>
             </div>
@@ -201,8 +192,15 @@
 
                 <!-- Results Section -->
                 <div class="section results-section">
-                    <div class="section-header">
+                    <div class="section-header results-header">
                         <h2>📊 Results</h2>
+                        <div class="export-group" id="export-group" hidden>
+                            <button class="btn btn-secondary" onclick="copyResults()">📋 Copy</button>
+                            <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
+                            <button class="btn btn-secondary" onclick="exportHTML()">💾 HTML</button>
+                            <button class="btn btn-secondary" onclick="exportCSV()">📊 CSV</button>
+                            <button class="btn btn-secondary" onclick="exportPDF()">📑 PDF</button>
+                        </div>
                     </div>
 
                     <!-- Placeholder -->
@@ -213,36 +211,38 @@
 
                     <!-- Results Content -->
                     <div id="results-content" class="results-content" style="display:none;">
-                        <div class="results-tabs">
-                            <button class="tab-button active" onclick="switchTab('overview', this)">📊 Overview</button>
-                            <button class="tab-button" onclick="switchTab('request', this)">📋 Request</button>
-                            <button class="tab-button" onclick="switchTab('response', this)">📨 Response</button>
-                            <button class="tab-button" onclick="switchTab('human', this)">💡 Insights</button>
-                            <button class="tab-button" onclick="switchTab('signals', this)">📺 Signals</button>
-                            <button class="tab-button" onclick="switchTab('interview', this)">🎓 Cheatsheet</button>
-                            <button class="tab-button" onclick="switchTab('compare', this)">⚖️ Compare</button>
-                            <button class="tab-button" onclick="switchTab('warnings', this)">⚠️ Warnings</button>
-                            <button class="tab-button" onclick="switchTab('raw', this)">📄 Raw</button>
+                        <div class="tab-groups">
+                            <div class="tab-group">
+                                <span class="tab-group-label">Analysis</span>
+                                <div class="results-tabs" role="tablist" aria-label="Analysis results">
+                                    <button class="tab-button active" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true">📊 Overview</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-human" aria-controls="tab-human" aria-selected="false" tabindex="-1">💡 Insights</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-request" aria-controls="tab-request" aria-selected="false" tabindex="-1">📋 Request</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-response" aria-controls="tab-response" aria-selected="false" tabindex="-1">📨 Response</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-compare" aria-controls="tab-compare" aria-selected="false" tabindex="-1">⚖️ Compare</button>
+                                </div>
+                            </div>
+                            <div class="tab-group">
+                                <span class="tab-group-label">Reference</span>
+                                <div class="results-tabs" role="tablist" aria-label="Reference and diagnostics">
+                                    <button class="tab-button" role="tab" id="tabbtn-signals" aria-controls="tab-signals" aria-selected="false" tabindex="-1">📺 Signals</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-interview" aria-controls="tab-interview" aria-selected="false" tabindex="-1">🎓 Cheatsheet</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-warnings" aria-controls="tab-warnings" aria-selected="false" tabindex="-1">⚠️ Warnings</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-raw" aria-controls="tab-raw" aria-selected="false" tabindex="-1">📄 Raw</button>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="tab-panels">
-                            <div class="tab-panel active" id="tab-overview"></div>
-                            <div class="tab-panel" id="tab-request"></div>
-                            <div class="tab-panel" id="tab-response"></div>
-                            <div class="tab-panel" id="tab-human"></div>
-                            <div class="tab-panel" id="tab-signals"></div>
-                            <div class="tab-panel" id="tab-interview"></div>
-                            <div class="tab-panel" id="tab-compare"></div>
-                            <div class="tab-panel" id="tab-warnings"></div>
-                            <div class="tab-panel" id="tab-raw"></div>
-                        </div>
-
-                        <div class="export-group">
-                            <button class="btn btn-secondary" onclick="copyResults()">📋 Copy</button>
-                            <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
-                            <button class="btn btn-secondary" onclick="exportHTML()">💾 HTML</button>
-                            <button class="btn btn-secondary" onclick="exportCSV()">📊 CSV</button>
-                            <button class="btn btn-secondary" onclick="exportPDF()">📑 PDF</button>
+                            <div class="tab-panel active" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-human" role="tabpanel" aria-labelledby="tabbtn-human" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-request" role="tabpanel" aria-labelledby="tabbtn-request" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-response" role="tabpanel" aria-labelledby="tabbtn-response" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-compare" role="tabpanel" aria-labelledby="tabbtn-compare" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-signals" role="tabpanel" aria-labelledby="tabbtn-signals" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-interview" role="tabpanel" aria-labelledby="tabbtn-interview" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-warnings" role="tabpanel" aria-labelledby="tabbtn-warnings" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-raw" role="tabpanel" aria-labelledby="tabbtn-raw" tabindex="0"></div>
                         </div>
                     </div>
                 </div>

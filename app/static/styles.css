@@ -33,7 +33,8 @@
         --bg-tertiary: #1e293b;
         --text-primary: #f1f5f9;
         --text-secondary: #cbd5e1;
-        --text-muted: #64748b;
+        /* #64748b on #0f172a is ~3.5:1 and fails WCAG AA; this is ~7:1. */
+        --text-muted: #a3b2c7;
         --border: #334155;
         --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
         --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
@@ -48,7 +49,8 @@ html[data-theme="dark"] {
     --bg-tertiary: #1e293b;
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
-    --text-muted: #64748b;
+    /* #64748b on #0f172a is ~3.5:1 and fails WCAG AA; this is ~7:1. */
+    --text-muted: #a3b2c7;
     --border: #334155;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
@@ -205,54 +207,57 @@ html, body {
 }
 
 /* Mode Selector */
+/* Compact single-row mode bar, so vertical space goes to the results. */
 .mode-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    flex-wrap: wrap;
     background: white;
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-md);
+    border-radius: 12px;
+    padding: 0.7rem 1.1rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow-sm);
     border: 1px solid var(--border);
 }
 
 .selector-label {
-    font-size: 0.9rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 1.5rem;
+    letter-spacing: 0.8px;
+    white-space: nowrap;
 }
 
 .selector-options {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .mode-option {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1.25rem;
-    border: 2px solid var(--border);
-    border-radius: 12px;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
     background: var(--bg-secondary);
     cursor: pointer;
-    transition: all 0.3s;
-    text-align: left;
+    transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .mode-option:hover {
     border-color: var(--primary);
     background: #f0f3ff;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
 }
 
 .mode-option.active {
     border-color: var(--primary);
     background: linear-gradient(135deg, #f0f3ff 0%, #fef0f7 100%);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
 }
 
 /* The hover/active backgrounds above are always light, so text must stay
@@ -262,25 +267,15 @@ html, body {
     color: #0f172a;
 }
 
-.mode-option:hover .mode-desc,
-.mode-option.active .mode-desc {
-    color: #475569;
-}
-
 .mode-icon {
-    font-size: 2rem;
+    font-size: 1.05rem;
+    line-height: 1;
 }
 
 .mode-name {
-    font-weight: 700;
+    font-weight: 600;
     color: var(--text-primary);
-    font-size: 1rem;
-}
-
-.mode-desc {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-top: 0.25rem;
+    font-size: 0.9rem;
 }
 
 /* Content */
@@ -658,37 +653,39 @@ html, body {
 /* Results Content */
 .results-tabs {
     display: flex;
-    gap: 0.5rem;
-    border-bottom: 2px solid var(--border);
-    margin-bottom: 1.5rem;
+    gap: 0.4rem;
     overflow-x: auto;
+    flex: 1;
+    min-width: 0;
 }
 
 .tab-button {
-    white-space: nowrap;
-}
-
-.tab-button {
-    padding: 0.75rem 1.25rem;
+    padding: 0.4rem 0.55rem;
     background: none;
-    border: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
     cursor: pointer;
     color: var(--text-muted);
     font-weight: 600;
-    font-size: 0.9rem;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    transition: all 0.3s;
+    font-size: 0.82rem;
+    transition: all 0.2s;
     white-space: nowrap;
+}
+
+.tab-button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .tab-button:hover {
     color: var(--text-primary);
+    border-color: var(--border);
 }
 
 .tab-button.active {
     color: var(--primary);
-    border-bottom-color: var(--primary);
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
 }
 
 .tab-panels {
@@ -719,17 +716,80 @@ html, body {
 }
 
 /* Export Group */
+/* Sits in the results header so export stays reachable without scrolling
+   to the bottom of a long report. */
 .export-group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
 }
 
-@media (max-width: 600px) {
-    .export-group {
-        grid-template-columns: 1fr;
-    }
+.export-group[hidden] {
+    display: none;
 }
+
+.export-group .btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+}
+
+.results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.results-header h2 {
+    margin-bottom: 0;
+}
+
+/* Grouped result tabs — keeps 9 tabs from wrapping into a wall of buttons. */
+.tab-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Label above its row rather than beside it — the results column is narrow
+   under the two-column layout, and inline labels pushed tabs into scroll. */
+.tab-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.tab-group-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Live JSON validation feedback, shown directly under its textarea. */
+.json-status {
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
+    min-height: 1.1rem;
+    font-weight: 600;
+}
+
+.json-status.valid {
+    color: var(--success);
+}
+
+.json-status.invalid {
+    color: var(--error);
+}
+
+.code-input.has-error {
+    border-color: var(--error);
+}
+
 
 /* Status Notification */
 .status-notification {

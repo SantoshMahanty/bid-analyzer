@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupKeyboardShortcuts();
     setupDragDrop();
     setupInputMethodTabs();
+    setupResultTabs();
+    setupJSONValidation();
     initializeTheme();
 });
 
@@ -46,13 +48,28 @@ function switchMode(mode) {
     document.querySelectorAll(".mode-option").forEach(btn => {
         btn.classList.remove("active");
     });
-    document.querySelector(`[data-mode="${mode}"]`).classList.add("active");
+    document.querySelector(`.mode-option[data-mode="${mode}"]`).classList.add("active");
 
     // Update content visibility
     document.querySelectorAll(".mode-content").forEach(el => el.style.display = "none");
     document.getElementById(`input-${mode}`).style.display = "block";
 
-    clearInputs();
+    // Compare mode has its own textareas; carry over what the user already
+    // typed so switching to it doesn't mean re-pasting. Never overwrites.
+    if (mode === "compare") {
+        copyIfEmpty("request-raw", "compare-request-raw");
+        copyIfEmpty("response-raw", "compare-response-raw");
+    }
+    // Deliberately no clearInputs() here — switching modes must not discard
+    // input. Each mode owns separate fields, and Clear stays available.
+}
+
+function copyIfEmpty(fromId, toId) {
+    const from = document.getElementById(fromId);
+    const to = document.getElementById(toId);
+    if (from && to && from.value.trim() && !to.value.trim()) {
+        to.value = from.value;
+    }
 }
 
 async function loadSamples() {
@@ -201,6 +218,7 @@ async function postJson(url, body) {
 function displayResults(report) {
     document.getElementById("results-placeholder").style.display = "none";
     document.getElementById("results-content").style.display = "block";
+    document.getElementById("export-group").hidden = false;
 
     // Phase 3: Enhanced Overview with KPI Metrics Dashboard
     let overviewHtml = "<div style='display: grid; gap: 2rem;'>";
@@ -523,11 +541,44 @@ function displayResults(report) {
     document.getElementById("tab-raw").innerHTML = `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${JSON.stringify(report, null, 2)}</pre>`;
 }
 
-function switchTab(tabName, btn) {
-    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach(c => c.classList.remove("active"));
+/* WAI-ARIA tab pattern: roving tabindex + aria-selected kept in sync so
+   screen readers and keyboard users get the same state as the visuals. */
+function activateTab(btn) {
+    if (!btn) return;
+    document.querySelectorAll(".tab-button").forEach(b => {
+        b.classList.remove("active");
+        b.setAttribute("aria-selected", "false");
+        b.tabIndex = -1;
+    });
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+
     btn.classList.add("active");
-    document.getElementById(`tab-${tabName}`).classList.add("active");
+    btn.setAttribute("aria-selected", "true");
+    btn.tabIndex = 0;
+    document.getElementById(btn.getAttribute("aria-controls"))?.classList.add("active");
+}
+
+function setupResultTabs() {
+    // Arrow keys move within a tablist; Home/End jump to its ends.
+    document.querySelectorAll(".tab-button").forEach(btn => {
+        btn.addEventListener("click", () => activateTab(btn));
+
+        btn.addEventListener("keydown", (e) => {
+            const group = Array.from(btn.closest("[role='tablist']").querySelectorAll(".tab-button"));
+            const i = group.indexOf(btn);
+            let next = null;
+
+            if (e.key === "ArrowRight") next = group[(i + 1) % group.length];
+            else if (e.key === "ArrowLeft") next = group[(i - 1 + group.length) % group.length];
+            else if (e.key === "Home") next = group[0];
+            else if (e.key === "End") next = group[group.length - 1];
+            else return;
+
+            e.preventDefault();
+            activateTab(next);
+            next.focus();
+        });
+    });
 }
 
 function copyResults() {
@@ -582,6 +633,66 @@ function showStatus(msg, type) {
     el.textContent = msg;
     el.className = `status-notification ${type} show`;
     setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+/* Live JSON validation: report the failing line as the user types, instead
+   of only on Analyze via a notification far from the error. */
+function setupJSONValidation() {
+    ["request-raw", "response-raw", "compare-request-raw", "compare-response-raw"]
+        .forEach(id => {
+            const ta = document.getElementById(id);
+            if (!ta) return;
+
+            const status = document.createElement("div");
+            status.className = "json-status";
+            status.id = `${id}-status`;
+            status.setAttribute("aria-live", "polite");
+            ta.insertAdjacentElement("afterend", status);
+
+            let timer;
+            ta.addEventListener("input", () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => validateJSONField(ta, status), 350);
+            });
+        });
+}
+
+function validateJSONField(textarea, status) {
+    const text = textarea.value.trim();
+
+    if (!text) {
+        status.textContent = "";
+        status.className = "json-status";
+        textarea.classList.remove("has-error");
+        textarea.removeAttribute("aria-invalid");
+        return;
+    }
+
+    try {
+        JSON.parse(text);
+        status.textContent = "✓ Valid JSON";
+        status.className = "json-status valid";
+        textarea.classList.remove("has-error");
+        textarea.removeAttribute("aria-invalid");
+    } catch (err) {
+        const where = jsonErrorLocation(textarea.value, err);
+        status.textContent = `✗ ${err.message}${where}`;
+        status.className = "json-status invalid";
+        textarea.classList.add("has-error");
+        textarea.setAttribute("aria-invalid", "true");
+    }
+}
+
+/* Older engines report only "at position N"; derive line/column from it.
+   Newer V8 already names the line, so don't repeat it. */
+function jsonErrorLocation(text, err) {
+    if (/line \d+/i.test(err.message)) return "";
+    const m = /position (\d+)/.exec(err.message);
+    if (!m) return "";
+    const upto = text.slice(0, Number(m[1]));
+    const line = upto.split("\n").length;
+    const col = upto.length - upto.lastIndexOf("\n");
+    return ` (line ${line}, column ${col})`;
 }
 
 /* Phase 2: JSON Prettify */
@@ -742,15 +853,18 @@ function initializeTheme() {
 }
 
 function applyTheme(theme) {
-    if (theme === 'dark') {
+    const toggle = document.getElementById('theme-toggle');
+    const dark = theme === 'dark';
+
+    if (dark) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('theme-toggle').textContent = '☀️';
-        localStorage.setItem('theme', 'dark');
     } else {
         document.documentElement.removeAttribute('data-theme');
-        document.getElementById('theme-toggle').textContent = '🌙';
-        localStorage.setItem('theme', 'light');
     }
+    toggle.textContent = dark ? '☀️' : '🌙';
+    // The emoji carries no meaning for screen readers, so state lives here.
+    toggle.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
 }
 
 // Advanced Export Functions
