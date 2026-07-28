@@ -92,7 +92,6 @@ html, body {
 .header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     color: white;
-    padding: 2rem;
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(10px);
 }
@@ -103,41 +102,49 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
+    padding: 1rem 2rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 1rem;
-    flex: 1;
+    min-width: 0;
 }
 
 .logo-icon {
-    font-size: 2.5rem;
+    font-size: 2rem;
     animation: float 3s ease-in-out infinite;
     flex-shrink: 0;
 }
 
 @keyframes float {
     0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    50% { transform: translateY(-8px); }
+}
+
+.header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
 .header-text h1 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 800;
     letter-spacing: -0.5px;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1;
 }
 
 .header-text p {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     opacity: 0.9;
     font-weight: 500;
-    margin: 0.2rem 0 0 0;
-    letter-spacing: 0.5px;
+    margin: 0.1rem 0 0 0;
+    letter-spacing: 0.3px;
 }
 
 .header-right {
