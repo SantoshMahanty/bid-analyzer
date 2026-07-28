@@ -16,7 +16,8 @@
       "Bash(python -c \"import httpx; print\\('Server check:', httpx.get\\('http://127.0.0.1:8000/health'\\).json\\(\\)\\)\")",
       "Bash(git add *)",
       "Bash(git commit -m 'Fix FastAPI/Starlette compatibility and add server launch config *)",
-      "Bash(git commit -m 'Refactor UI with 3-mode dropdown selector *)"
+      "Bash(git commit -m 'Refactor UI with 3-mode dropdown selector *)",
+      "Bash(git commit -m 'Complete UI redesign with modern, beautiful interface *)"
     ]
   }
 }

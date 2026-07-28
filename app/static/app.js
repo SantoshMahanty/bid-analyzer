@@ -5,70 +5,103 @@ const state = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-    bindTabNavigation();
-    bindModeSelector();
+    bindModeCards();
+    bindInputTabs();
     bindActions();
     loadSamples();
-    initializeMode();
 });
 
-function bindModeSelector() {
-    const modeSelect = document.getElementById("analysis-mode");
-    modeSelect.addEventListener("change", (e) => {
-        state.currentMode = e.target.value;
-        updateModeDisplay();
+/* Mode Selection */
+function bindModeCards() {
+    document.querySelectorAll(".mode-card").forEach((card) => {
+        card.addEventListener("click", () => {
+            const mode = card.dataset.mode;
+            switchMode(mode);
+        });
     });
 }
 
-function initializeMode() {
-    state.currentMode = "request";
-    updateModeDisplay();
-}
+function switchMode(mode) {
+    state.currentMode = mode;
 
-function updateModeDisplay() {
-    // Hide all mode panels
-    document.querySelectorAll(".mode-panel").forEach((panel) => panel.classList.remove("active"));
-    document.getElementById("mode-compare").style.display = "none";
+    // Update active card
+    document.querySelectorAll(".mode-card").forEach((card) => {
+        card.classList.remove("active");
+    });
+    document.querySelector(`[data-mode="${mode}"]`).classList.add("active");
 
-    if (state.currentMode === "request") {
-        document.getElementById("mode-request").classList.add("active");
-        document.getElementById("mode-request").style.display = "block";
-        document.getElementById("load-default-btn").style.display = "inline-block";
-    } else if (state.currentMode === "response") {
-        document.getElementById("mode-response").classList.add("active");
-        document.getElementById("mode-response").style.display = "block";
-        document.getElementById("load-default-btn").style.display = "inline-block";
-    } else if (state.currentMode === "compare") {
-        document.getElementById("mode-compare").style.display = "grid";
-        document.getElementById("load-default-btn").style.display = "inline-block";
-    }
+    // Update mode panels
+    document.querySelectorAll(".mode-panel").forEach((panel) => {
+        panel.style.display = "none";
+        panel.classList.remove("active");
+    });
+    document.getElementById(`mode-${mode}`).style.display = "block";
+    document.getElementById(`mode-${mode}`).classList.add("active");
+
+    // Update description
+    const descriptions = {
+        request: "Paste or upload a bid request to inspect signals and validation",
+        response: "Paste or upload a bid response to analyze seats and bids",
+        compare: "Upload both request and response to validate matching and compliance"
+    };
+    document.getElementById("mode-description").textContent = descriptions[mode];
 
     clearAll();
 }
 
+/* Input Tabs */
+function bindInputTabs() {
+    document.querySelectorAll(".input-tab").forEach((tab) => {
+        tab.addEventListener("click", (e) => {
+            const tabName = tab.dataset.tab;
+            const tabsContainer = tab.closest(".input-tabs");
+            const contentContainer = tabsContainer.nextElementSibling;
+
+            // Remove active from all tabs in this group
+            tabsContainer.querySelectorAll(".input-tab").forEach((t) => {
+                t.classList.remove("active");
+            });
+            tab.classList.add("active");
+
+            // Hide all content in this section
+            let current = contentContainer;
+            while (current && !current.classList.contains("input-panel") && !current.classList.contains("compare-inputs")) {
+                if (current.classList.contains("input-tab-content")) {
+                    current.classList.remove("active");
+                    current.style.display = "none";
+                }
+                current = current.nextElementSibling;
+            }
+
+            // Show selected tab content
+            const tabContent = contentContainer.querySelector(`[id*="${tabName}"]`);
+            if (tabContent) {
+                tabContent.classList.add("active");
+                tabContent.style.display = "block";
+            }
+        });
+    });
+}
+
 function bindActions() {
     document.getElementById("analyze-btn").addEventListener("click", analyzeWorkflow);
-    document.getElementById("load-default-btn").addEventListener("click", loadDefaultSamples);
     document.getElementById("clear-btn").addEventListener("click", clearAll);
     document.getElementById("copy-report-btn").addEventListener("click", copyReport);
     document.getElementById("export-html-btn").addEventListener("click", exportHtmlReport);
     document.getElementById("export-json-btn").addEventListener("click", exportJsonReport);
 
-    document.querySelectorAll("[data-load-sample]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const target = button.dataset.loadSample;
-            applySelectedSample(target);
-        });
-    });
+    // Load sample buttons
+    bindSampleButtons();
 }
 
-function bindTabNavigation() {
-    document.querySelectorAll(".tab-button").forEach((button) => {
-        button.addEventListener("click", () => {
-            document.querySelectorAll(".tab-button").forEach((item) => item.classList.remove("active"));
-            document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
-            button.classList.add("active");
-            document.getElementById(`tab-${button.dataset.tab}`).classList.add("active");
+function bindSampleButtons() {
+    document.querySelectorAll("[id*='load-'][id*='-sample-btn']").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            const btnId = btn.id;
+            const mode = btnId.includes("request") ? "request" : btnId.includes("response") ? "response" : "compare";
+            const selectId = btnId.replace("-btn", "");
+            const select = document.getElementById(selectId);
+            applySelectedSample(select);
         });
     });
 }
@@ -78,6 +111,7 @@ async function loadSamples() {
         const response = await fetch("/samples");
         const data = await response.json();
         state.samples = data.samples || [];
+
         populateSampleSelect("request-sample", "request");
         populateSampleSelect("response-sample", "response");
         populateSampleSelect("compare-request-sample", "request");
@@ -89,6 +123,8 @@ async function loadSamples() {
 
 function populateSampleSelect(selectId, kind) {
     const select = document.getElementById(selectId);
+    if (!select) return;
+
     const samples = state.samples.filter((sample) => sample.kind === kind);
     select.innerHTML = `<option value="">Choose a ${kind} sample</option>`;
     samples.forEach((sample) => {
@@ -99,95 +135,63 @@ function populateSampleSelect(selectId, kind) {
     });
 }
 
-function applySelectedSample(target) {
-    // Handle compare mode targets
-    const sampleSelectId = target.includes("compare") ? `${target}-sample` : `${target}-sample`;
-    const select = document.getElementById(sampleSelectId);
-
-    if (!select) {
-        showStatus(`Sample selector not found for ${target}.`, "error");
+function applySelectedSample(select) {
+    if (!select || !select.value) {
+        showStatus("Choose a sample first.", "info");
         return;
     }
 
     const sample = state.samples.find((item) => item.name === select.value);
-    if (!sample) {
-        showStatus(`Choose a ${target.replace("compare-", "")} sample first.`, "info");
-        return;
-    }
+    if (!sample) return;
 
-    const rawId = `${target}-raw`;
-    const urlId = `${target}-url`;
-    const fileId = `${target}-file`;
+    const selectId = select.id;
+    const textareaId = selectId.replace("-sample", "-raw");
+    const textarea = document.getElementById(textareaId);
 
-    if (document.getElementById(rawId)) document.getElementById(rawId).value = sample.content;
-    if (document.getElementById(urlId)) document.getElementById(urlId).value = "";
-    if (document.getElementById(fileId)) document.getElementById(fileId).value = "";
-
-    showStatus(`${sample.name} loaded.`, "info");
-}
-
-function loadDefaultSamples() {
-    const requestSample = state.samples.find((sample) => sample.name === "sample_request_ctv.json");
-    const responseSample = state.samples.find((sample) => sample.name === "sample_response_ctv.json");
-
-    if (state.currentMode === "request" && requestSample) {
-        document.getElementById("request-raw").value = requestSample.content;
-        showStatus("Loaded sample CTV request.", "info");
-    } else if (state.currentMode === "response" && responseSample) {
-        document.getElementById("response-raw").value = responseSample.content;
-        showStatus("Loaded sample CTV response.", "info");
-    } else if (state.currentMode === "compare") {
-        if (requestSample) document.getElementById("compare-request-raw").value = requestSample.content;
-        if (responseSample) document.getElementById("compare-response-raw").value = responseSample.content;
-        showStatus("Loaded default CTV request and response samples.", "info");
+    if (textarea) {
+        textarea.value = sample.content;
+        showStatus(`${sample.name} loaded.`, "info");
     }
 }
 
 function clearAll() {
-    // Clear mode-specific panels
     if (state.currentMode === "request") {
-        ["request"].forEach((target) => clearPanel(target));
+        document.getElementById("request-raw").value = "";
+        document.getElementById("request-url").value = "";
+        document.getElementById("request-file").value = "";
+        document.getElementById("request-sample").value = "";
     } else if (state.currentMode === "response") {
-        ["response"].forEach((target) => clearPanel(target));
+        document.getElementById("response-raw").value = "";
+        document.getElementById("response-url").value = "";
+        document.getElementById("response-file").value = "";
+        document.getElementById("response-sample").value = "";
     } else if (state.currentMode === "compare") {
-        ["compare-request", "compare-response"].forEach((target) => clearPanel(target));
+        document.getElementById("compare-request-raw").value = "";
+        document.getElementById("compare-request-file").value = "";
+        document.getElementById("compare-request-sample").value = "";
+        document.getElementById("compare-response-raw").value = "";
+        document.getElementById("compare-response-file").value = "";
+        document.getElementById("compare-response-sample").value = "";
     }
 
     state.report = null;
     updateExportButtons(false);
     document.getElementById("results").classList.add("hidden");
     document.getElementById("results-placeholder").classList.remove("hidden");
-    document.getElementById("overall-status").textContent = "Ready";
-    document.getElementById("overall-status").className = "status-chip neutral";
-    hideStatus();
-}
-
-function clearPanel(target) {
-    const rawId = `${target}-raw`;
-    const urlId = `${target}-url`;
-    const fileId = `${target}-file`;
-    const sampleId = `${target}-sample`;
-    const pillId = `${target}-pill`;
-
-    if (document.getElementById(rawId)) document.getElementById(rawId).value = "";
-    if (document.getElementById(urlId)) document.getElementById(urlId).value = "";
-    if (document.getElementById(fileId)) document.getElementById(fileId).value = "";
-    if (document.getElementById(sampleId)) document.getElementById(sampleId).value = "";
-    if (document.getElementById(pillId)) document.getElementById(pillId).textContent = "Idle";
 }
 
 function panelHasInput(target) {
-    const raw = document.getElementById(`${target}-raw`).value.trim();
-    const url = document.getElementById(`${target}-url`).value.trim();
-    const file = document.getElementById(`${target}-file`).files[0];
+    const raw = document.getElementById(`${target}-raw`)?.value.trim() || "";
+    const url = document.getElementById(`${target}-url`)?.value.trim() || "";
+    const file = document.getElementById(`${target}-file`)?.files[0];
     return Boolean(raw || url || file);
 }
 
 function buildFormData(target) {
     const formData = new FormData();
-    formData.append("raw_text", document.getElementById(`${target}-raw`).value);
-    formData.append("source_url", document.getElementById(`${target}-url`).value);
-    const file = document.getElementById(`${target}-file`).files[0];
+    formData.append("raw_text", document.getElementById(`${target}-raw`)?.value || "");
+    formData.append("source_url", document.getElementById(`${target}-url`)?.value || "");
+    const file = document.getElementById(`${target}-file`)?.files[0];
     if (file) {
         formData.append("file", file);
     }
@@ -195,7 +199,6 @@ function buildFormData(target) {
 }
 
 async function analyzeWorkflow() {
-    setBusy(true);
     let report = {
         request: null,
         response: null,
@@ -207,36 +210,29 @@ async function analyzeWorkflow() {
         if (state.currentMode === "request") {
             if (!panelHasInput("request")) {
                 showStatus("Upload or paste a bid request to analyze.", "error");
-                setBusy(false);
                 return;
             }
-            showStatus("Analyzing bid request and applying OpenRTB rules.", "info");
+            showStatus("Analyzing bid request...", "info");
             report.request = await postForm("/analyze/request", buildFormData("request"));
-            applySourcePill("request", report.request);
         } else if (state.currentMode === "response") {
             if (!panelHasInput("response")) {
                 showStatus("Upload or paste a bid response to analyze.", "error");
-                setBusy(false);
                 return;
             }
-            showStatus("Analyzing bid response and detecting signals.", "info");
+            showStatus("Analyzing bid response...", "info");
             report.response = await postForm("/analyze/response", buildFormData("response"));
-            applySourcePill("response", report.response);
         } else if (state.currentMode === "compare") {
             const hasRequest = panelHasInput("compare-request");
             const hasResponse = panelHasInput("compare-response");
 
             if (!hasRequest || !hasResponse) {
                 showStatus("Provide both bid request and response to compare.", "error");
-                setBusy(false);
                 return;
             }
 
-            showStatus("Analyzing and comparing request vs response.", "info");
+            showStatus("Analyzing and comparing...", "info");
             report.request = await postForm("/analyze/request", buildFormData("compare-request"));
             report.response = await postForm("/analyze/response", buildFormData("compare-response"));
-            applySourcePill("compare-request", report.request);
-            applySourcePill("compare-response", report.response);
 
             if (report.request?.raw_payload && report.response?.raw_payload) {
                 report.comparison = await postJson("/analyze/compare", {
@@ -251,11 +247,9 @@ async function analyzeWorkflow() {
         state.report = report;
         renderReport(report);
         updateExportButtons(true);
-        showStatus("Analysis complete.", "info");
+        showStatus("Analysis complete.", "success");
     } catch (error) {
         showStatus(`Analysis failed: ${error.message}`, "error");
-    } finally {
-        setBusy(false);
     }
 }
 
@@ -284,22 +278,22 @@ async function postJson(url, body) {
     return response.json();
 }
 
-function applySourcePill(target, analysis) {
-    const pill = document.getElementById(`${target}-source-pill`);
-    const source = analysis?.input_source?.source_type || "unknown";
-    pill.textContent = `${source} | ${analysis?.parse_status || "unknown"}`;
-}
-
 function renderReport(report) {
     document.getElementById("results-placeholder").classList.add("hidden");
     document.getElementById("results").classList.remove("hidden");
 
-    const comparisonStatus = report.comparison?.overall_status || "neutral";
-    const overall = document.getElementById("overall-status");
-    overall.textContent = comparisonStatus === "neutral" ? "Single payload analysis" : comparisonStatus;
-    overall.className = `status-chip ${statusClass(comparisonStatus)}`;
+    const statusEl = document.getElementById("results-status");
+    if (report.request && report.response && report.comparison) {
+        statusEl.textContent = report.comparison?.overall_status || "Complete";
+        statusEl.className = "status-badge " + (report.comparison?.overall_status === "pass" ? "success" : "warning");
+    } else if (report.request) {
+        statusEl.textContent = "Request Analyzed";
+        statusEl.className = "status-badge success";
+    } else if (report.response) {
+        statusEl.textContent = "Response Analyzed";
+        statusEl.className = "status-badge success";
+    }
 
-    renderSnapshot(report);
     renderOverview(report);
     renderRequestSummary(report.request);
     renderResponseSummary(report.response);
@@ -312,333 +306,170 @@ function renderReport(report) {
     renderInterview(report);
 }
 
-function renderSnapshot(report) {
-    const snapshot = document.getElementById("results-snapshot");
-    const requestState = report.request
-        ? `${report.request.summary?.inventory_source || "unknown"} / ${report.request.summary?.ad_format || "unknown"}`
-        : "No request provided";
-    const responseState = report.response
-        ? `${report.response.summary?.bid_count ?? 0} bids across ${report.response.summary?.seat_count ?? 0} seats`
-        : "No response provided";
-    const validationState = [
-        ...(report.request?.errors || []),
-        ...(report.response?.errors || []),
-    ].length
-        ? "Errors detected"
-        : [
-            ...(report.request?.warnings || []),
-            ...(report.response?.warnings || []),
-        ].length
-            ? "Warnings detected"
-            : "No major issues";
-    const comparisonState = report.comparison
-        ? `${report.comparison.overall_status} with ${report.comparison.summary?.matched_impids?.length || 0} mapped imp ids`
-        : "Comparison unavailable";
-
-    snapshot.innerHTML = [
-        snapshotCard("Request profile", requestState),
-        snapshotCard("Response profile", responseState),
-        snapshotCard("Validation", validationState),
-        snapshotCard("Compare status", comparisonState),
-    ].join("");
-}
-
 function renderOverview(report) {
-    const cards = [];
+    const content = document.getElementById("tab-overview");
+    let html = "<div style='display: grid; gap: 1rem;'>";
+
     if (report.request) {
-        cards.push(metricCard("Request Type", report.request.request_type_detection?.request_type_sentence || "Request analyzed", report.request.input_source?.source_type || "unknown"));
-        cards.push(metricCard("Request Impressions", report.request.summary?.impression_count ?? 0, `Format: ${report.request.summary?.ad_format || "unknown"}`));
-    }
-    if (report.response) {
-        cards.push(metricCard("Response Bids", report.response.summary?.bid_count ?? 0, `Seats: ${report.response.summary?.seat_count ?? 0}`));
-        cards.push(metricCard("Response Validity", report.response.summary?.looks_valid ? "Looks valid" : "Suspicious", report.response.summary?.creative_metadata || "unknown"));
-    }
-    if (report.comparison) {
-        cards.push(metricCard("Comparison", report.comparison.overall_status, `${report.comparison.summary?.matched_impids?.length || 0} matched imp ids`));
+        html += `<div style='padding: 1rem; background: white; border-radius: 8px; border-left: 4px solid #3b82f6;'>
+            <h3>Request</h3>
+            <p><strong>ID:</strong> ${report.request.summary?.request_id || "—"}</p>
+            <p><strong>Format:</strong> ${report.request.summary?.ad_format || "—"}</p>
+            <p><strong>Environment:</strong> ${report.request.summary?.environment_guess || "—"}</p>
+        </div>`;
     }
 
-    document.getElementById("tab-overview").innerHTML = `
-        <div class="overview-grid">${cards.join("")}</div>
-    `;
+    if (report.response) {
+        html += `<div style='padding: 1rem; background: white; border-radius: 8px; border-left: 4px solid #10b981;'>
+            <h3>Response</h3>
+            <p><strong>Bids:</strong> ${report.response.summary?.bid_count || 0}</p>
+            <p><strong>Seats:</strong> ${report.response.summary?.seat_count || 0}</p>
+            <p><strong>Max Price:</strong> $${report.response.summary?.max_bid_price || "—"}</p>
+        </div>`;
+    }
+
+    html += "</div>";
+    content.innerHTML = html;
 }
 
 function renderRequestSummary(request) {
-    const container = document.getElementById("tab-request-summary");
+    const content = document.getElementById("tab-request-summary");
     if (!request) {
-        container.innerHTML = emptyState("No bid request was provided.");
+        content.innerHTML = "<p>No request data</p>";
         return;
     }
 
-    container.innerHTML = `
-        <div class="analysis-grid">
-            ${detailCard("Request Summary", keyValueTable(request.summary))}
-            ${detailCard("Input Source", keyValueTable(request.input_source))}
-            ${detailCard("Parsed Fields Snapshot", keyValueTable(request.parsed_fields.top_level || {}))}
-        </div>
-    `;
+    let html = "<div style='display: grid; gap: 0.5rem;'>";
+    for (const [key, value] of Object.entries(request.summary || {})) {
+        html += `<div style='display: grid; grid-template-columns: 150px 1fr; gap: 1rem;'>
+            <strong>${key}</strong>
+            <span>${typeof value === "object" ? JSON.stringify(value) : value}</span>
+        </div>`;
+    }
+    html += "</div>";
+    content.innerHTML = html;
 }
 
 function renderResponseSummary(response) {
-    const container = document.getElementById("tab-response-summary");
+    const content = document.getElementById("tab-response-summary");
     if (!response) {
-        container.innerHTML = emptyState("No bid response was provided.");
+        content.innerHTML = "<p>No response data</p>";
         return;
     }
 
-    container.innerHTML = `
-        <div class="analysis-grid">
-            ${detailCard("Response Summary", keyValueTable(response.summary))}
-            ${detailCard("Input Source", keyValueTable(response.input_source))}
-            ${detailCard("Response Fields", keyValueTable(response.parsed_fields.top_level || {}))}
-        </div>
-    `;
+    let html = "<div style='display: grid; gap: 0.5rem;'>";
+    for (const [key, value] of Object.entries(response.summary || {})) {
+        html += `<div style='display: grid; grid-template-columns: 150px 1fr; gap: 1rem;'>
+            <strong>${key}</strong>
+            <span>${typeof value === "object" ? JSON.stringify(value) : value}</span>
+        </div>`;
+    }
+    html += "</div>";
+    content.innerHTML = html;
 }
 
 function renderTypeDetection(request) {
-    const container = document.getElementById("tab-type-detection");
-    if (!request) {
-        container.innerHTML = emptyState("Request type detection is only available when a bid request is analyzed.");
+    const content = document.getElementById("tab-type-detection");
+    if (!request?.request_type_detection) {
+        content.innerHTML = "<p>No type detection data</p>";
         return;
     }
 
-    const detection = request.request_type_detection || {};
-    container.innerHTML = `
-        <div class="cards-grid">
-            ${metricCard("Inventory Source", detection.inventory_source || "unknown", "source")}
-            ${metricCard("Ad Format", detection.ad_format || "unknown", "format")}
-            ${metricCard("Environment", detection.environment_guess || "unknown", "environment")}
-            ${metricCard("Deal Type", detection.deal_type || "unknown", "auction path")}
-            ${metricCard("Auction Model", detection.auction_model || "unknown", "pricing")}
-            ${metricCard("Version Guess", detection.version_guess || "unknown", detection.version_confidence || "confidence")}
-            ${metricCard("CTV Score", detection.ctv_score ?? 0, detection.ctv_label || "unknown")}
+    const det = request.request_type_detection;
+    let html = `<div style='display: grid; gap: 1rem;'>
+        <div style='padding: 1rem; background: white; border-radius: 8px;'>
+            <p><strong>Inventory:</strong> ${det.inventory_source || "—"}</p>
+            <p><strong>Format:</strong> ${det.ad_format || "—"}</p>
+            <p><strong>CTV Label:</strong> ${det.ctv_label || "—"} (Score: ${det.ctv_score || 0}/20)</p>
+            <p><strong>Version:</strong> ${det.version_guess || "—"}</p>
         </div>
-        <div class="analysis-grid">
-            ${detailCard("Structured Request Type Sentence", `<p>${escapeHtml(detection.request_type_sentence || "No request type sentence generated.")}</p>`)}
-            ${detailCard("Traffic Quality Notes", keyValueTable(detection.traffic_quality_notes || {}))}
-            ${detailCard("CTV Reasons", listMarkup(detection.ctv_reasons || []))}
-        </div>
-    `;
+    </div>`;
+    content.innerHTML = html;
 }
 
 function renderComparison(comparison) {
-    const container = document.getElementById("tab-comparison");
+    const content = document.getElementById("tab-comparison");
     if (!comparison) {
-        container.innerHTML = emptyState("Comparison runs when both a request and response are available.");
+        content.innerHTML = "<p>No comparison data. Analyze both request and response to compare.</p>";
         return;
     }
 
-    const checks = (comparison.checks || []).map((check) => `
-        <div class="detail-card">
-            <div class="panel-heading">
-                <h4>${escapeHtml(check.label)}</h4>
-                <span class="badge ${statusClass(check.status)}">${escapeHtml(check.status)}</span>
-            </div>
-            <p class="muted">${escapeHtml(check.message)}</p>
-        </div>
-    `).join("");
-
-    container.innerHTML = `
-        <div class="analysis-grid">
-            ${detailCard("Comparison Summary", keyValueTable(comparison.summary || {}))}
-        </div>
-        <div class="analysis-grid">${checks}</div>
-    `;
+    let html = "<div style='display: grid; gap: 1rem;'>";
+    for (const finding of comparison.comparison_findings || []) {
+        html += `<div style='padding: 1rem; background: white; border-radius: 8px; border-left: 4px solid #f59e0b;'>
+            ${finding}
+        </div>`;
+    }
+    html += "</div>";
+    content.innerHTML = html;
 }
 
 function renderHuman(report) {
-    const lists = [];
-    if (report.request) {
-        lists.push(detailCard("Request Explanations", listMarkup(report.request.human_explanations || [])));
+    const content = document.getElementById("tab-human");
+    const explanations = report.request?.human_explanations || [];
+    let html = "<div style='display: grid; gap: 1rem;'>";
+    for (const exp of explanations) {
+        html += `<div style='padding: 1rem; background: white; border-radius: 8px;'>
+            ${exp}
+        </div>`;
     }
-    if (report.response) {
-        lists.push(detailCard("Response Explanations", listMarkup(report.response.human_explanations || [])));
-    }
-
-    document.getElementById("tab-human").innerHTML = lists.length
-        ? `<div class="analysis-grid">${lists.join("")}</div>`
-        : emptyState("No human-readable explanations are available yet.");
+    html += "</div>";
+    content.innerHTML = html || "<p>No explanations available</p>";
 }
 
 function renderInterpretation(report) {
-    const items = [];
-    if (report.request) {
-        items.push(detailCard("Request Signals", keyValueTable(report.request.inferred_signals || {})));
+    const content = document.getElementById("tab-interpretation");
+    const signals = report.request?.inferred_signals || {};
+    let html = "<div style='display: grid; gap: 0.5rem;'>";
+    for (const [key, value] of Object.entries(signals)) {
+        html += `<div style='display: grid; grid-template-columns: 150px 1fr; gap: 1rem;'>
+            <strong>${key}</strong>
+            <span>${typeof value === "object" ? JSON.stringify(value) : value}</span>
+        </div>`;
     }
-    if (report.response) {
-        items.push(detailCard("Response Signals", keyValueTable(report.response.inferred_signals || {})));
-    }
-
-    document.getElementById("tab-interpretation").innerHTML = items.length
-        ? `<div class="analysis-grid">${items.join("")}</div>`
-        : emptyState("No interpretation data available.");
+    html += "</div>";
+    content.innerHTML = html || "<p>No signal data available</p>";
 }
 
 function renderWarnings(report) {
-    const cards = [];
+    const content = document.getElementById("tab-warnings");
+    const warnings = [
+        ...(report.request?.warnings || []),
+        ...(report.response?.warnings || []),
+    ];
 
-    if (report.request) {
-        cards.push(detailCard("Request Warnings", listMarkup(report.request.warnings || [])));
-        cards.push(detailCard("Request Errors", listMarkup(report.request.errors || [])));
+    if (warnings.length === 0) {
+        content.innerHTML = "<p style='color: #10b981;'>✓ No warnings</p>";
+        return;
     }
 
-    if (report.response) {
-        cards.push(detailCard("Response Warnings", listMarkup(report.response.warnings || [])));
-        cards.push(detailCard("Response Errors", listMarkup(report.response.errors || [])));
+    let html = "<div style='display: grid; gap: 0.5rem;'>";
+    for (const warning of warnings) {
+        html += `<div style='padding: 0.75rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;'>
+            ${warning}
+        </div>`;
     }
-
-    if (report.comparison) {
-        const failedChecks = (report.comparison.checks || [])
-            .filter((check) => check.status !== "PASS")
-            .map((check) => `${check.status}: ${check.label} - ${check.message}`);
-        cards.push(detailCard("Comparison Findings", listMarkup(failedChecks)));
-    }
-
-    document.getElementById("tab-warnings").innerHTML = cards.length
-        ? `<div class="analysis-grid">${cards.join("")}</div>`
-        : emptyState("No warnings or errors to show.");
+    html += "</div>";
+    content.innerHTML = html;
 }
 
 function renderRaw(report) {
-    const sections = [];
-    if (report.request) {
-        sections.push(detailCard("Request Parsed Fields", detailsBlock("View parsed request fields", report.request.parsed_fields)));
-        sections.push(detailCard("Request Raw Payload", detailsBlock("View request JSON", report.request.raw_payload)));
-    }
-    if (report.response) {
-        sections.push(detailCard("Response Parsed Fields", detailsBlock("View parsed response fields", report.response.parsed_fields)));
-        sections.push(detailCard("Response Raw Payload", detailsBlock("View response JSON", report.response.raw_payload)));
-    }
-
-    document.getElementById("tab-raw").innerHTML = sections.length
-        ? `<div class="raw-grid">${sections.join("")}</div>`
-        : emptyState("No raw payloads available.");
+    const content = document.getElementById("tab-raw");
+    let html = "<pre style='background: #f3f4f6; padding: 1rem; border-radius: 8px; overflow-x: auto;'>";
+    html += JSON.stringify(report, null, 2);
+    html += "</pre>";
+    content.innerHTML = html;
 }
 
 function renderInterview(report) {
-    const cards = [];
-    if (report.request) {
-        cards.push(detailCard("Request Interview Points", listMarkup(report.request.interview_points || [])));
+    const content = document.getElementById("tab-interview");
+    const points = report.request?.interview_points || [];
+    let html = "<ul style='padding-left: 1.5rem;'>";
+    for (const point of points) {
+        html += `<li style='margin-bottom: 0.75rem;'>${point}</li>`;
     }
-    if (report.response) {
-        cards.push(detailCard("Response Interview Points", listMarkup(report.response.interview_points || [])));
-    }
-
-    const comparisonPoints = [];
-    if (report.comparison) {
-        comparisonPoints.push(`Overall request/response check status is ${report.comparison.overall_status}.`);
-        if ((report.comparison.summary?.below_floor_bids || 0) > 0) {
-            comparisonPoints.push("At least one response bid is below the request floor.");
-        }
-        if ((report.comparison.summary?.deal_mismatches || 0) > 0) {
-            comparisonPoints.push("A response deal id does not map back to the request deal list.");
-        }
-        if ((report.comparison.summary?.matched_impids || []).length > 0) {
-            comparisonPoints.push("Some response bids map cleanly to request impression ids.");
-        }
-    }
-
-    if (comparisonPoints.length) {
-        cards.push(detailCard("Comparison Interview Points", listMarkup(comparisonPoints)));
-    }
-
-    document.getElementById("tab-interview").innerHTML = cards.length
-        ? `<div class="analysis-grid">${cards.join("")}</div>`
-        : emptyState("No interview-ready points available.");
-}
-
-function metricCard(title, value, subtitle) {
-    return `
-        <article class="card">
-            <p class="panel-kicker">${escapeHtml(title)}</p>
-            <div class="metric-value">${escapeHtml(String(value))}</div>
-            <p class="muted">${escapeHtml(String(subtitle || ""))}</p>
-        </article>
-    `;
-}
-
-function snapshotCard(title, value) {
-    return `
-        <article class="snapshot-card">
-            <strong>${escapeHtml(title)}</strong>
-            <span>${escapeHtml(String(value))}</span>
-        </article>
-    `;
-}
-
-function detailCard(title, content) {
-    return `
-        <article class="detail-card">
-            <h3>${escapeHtml(title)}</h3>
-            ${content}
-        </article>
-    `;
-}
-
-function keyValueTable(data) {
-    const entries = Object.entries(data || {});
-    if (!entries.length) {
-        return `<p class="muted">No fields available.</p>`;
-    }
-    return `
-        <table class="kv-table">
-            <tbody>
-                ${entries.map(([key, value]) => `
-                    <tr>
-                        <td>${escapeHtml(key)}</td>
-                        <td>${formatValue(value)}</td>
-                    </tr>
-                `).join("")}
-            </tbody>
-        </table>
-    `;
-}
-
-function listMarkup(items) {
-    if (!items || !items.length) {
-        return `<p class="muted">No items to show.</p>`;
-    }
-    return `<ul class="list">${items.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("")}</ul>`;
-}
-
-function detailsBlock(label, data) {
-    return `
-        <details class="details-block">
-            <summary>${escapeHtml(label)}</summary>
-            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
-        </details>
-    `;
-}
-
-function emptyState(message) {
-    return `<div class="detail-card"><p class="muted">${escapeHtml(message)}</p></div>`;
-}
-
-function formatValue(value) {
-    if (value === null || value === undefined) {
-        return `<span class="muted">-</span>`;
-    }
-    if (typeof value === "object") {
-        return `<pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
-    }
-    return escapeHtml(String(value));
-}
-
-function showStatus(message, type = "info") {
-    const banner = document.getElementById("status-banner");
-    banner.textContent = message;
-    banner.className = `status-banner ${type}`;
-}
-
-function hideStatus() {
-    const banner = document.getElementById("status-banner");
-    banner.textContent = "";
-    banner.className = "status-banner hidden";
-}
-
-function setBusy(isBusy) {
-    document.getElementById("analyze-btn").disabled = isBusy;
-    document.getElementById("load-default-btn").disabled = isBusy;
-    document.getElementById("clear-btn").disabled = isBusy;
+    html += "</ul>";
+    content.innerHTML = html || "<p>No interview points available</p>";
 }
 
 function updateExportButtons(enabled) {
@@ -647,113 +478,82 @@ function updateExportButtons(enabled) {
     document.getElementById("export-json-btn").disabled = !enabled;
 }
 
-function statusClass(status) {
-    if (status === "PASS") return "status-pass";
-    if (status === "WARNING") return "status-warning";
-    if (status === "FAIL") return "status-fail";
-    return "neutral";
-}
-
-async function copyReport() {
-    if (!state.report) return;
-    const text = composeReportText(state.report);
-    await navigator.clipboard.writeText(text);
-    showStatus("Copied readable report to the clipboard.", "info");
-}
-
-function exportJsonReport() {
-    if (!state.report) return;
-    downloadBlob("bid-analyzer-report.json", JSON.stringify(state.report, null, 2), "application/json");
+function copyReport() {
+    const text = JSON.stringify(state.report, null, 2);
+    navigator.clipboard.writeText(text).then(() => {
+        showStatus("Report copied to clipboard.", "success");
+    });
 }
 
 function exportHtmlReport() {
-    if (!state.report) return;
-    const text = composeReportText(state.report)
-        .split("\n")
-        .map((line) => `<p>${escapeHtml(line)}</p>`)
-        .join("");
-    const html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Bid Analyzer Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 32px; line-height: 1.55; color: #1b2330; }
-                h1 { margin-bottom: 8px; }
-                .section { margin-top: 24px; }
-            </style>
-        </head>
-        <body>
-            <h1>Bid Analyzer Report</h1>
-            <div class="section">${text}</div>
-        </body>
-        </html>
-    `;
-    downloadBlob("bid-analyzer-report.html", html, "text/html");
-}
-
-function composeReportText(report) {
-    const lines = [];
-    lines.push("Bid Analyzer Report");
-    lines.push(`Created: ${report.createdAt}`);
-    lines.push("");
-
-    if (report.request) {
-        lines.push("Request Overview");
-        lines.push(`- Type sentence: ${report.request.request_type_detection?.request_type_sentence || "n/a"}`);
-        lines.push(`- Impression count: ${report.request.summary?.impression_count ?? 0}`);
-        lines.push(`- Environment: ${report.request.summary?.environment_guess || "unknown"}`);
-        lines.push(`- Deal type: ${report.request.summary?.deal_type || "unknown"}`);
-        lines.push("");
-    }
-
-    if (report.response) {
-        lines.push("Response Overview");
-        lines.push(`- Seats: ${report.response.summary?.seat_count ?? 0}`);
-        lines.push(`- Bids: ${report.response.summary?.bid_count ?? 0}`);
-        lines.push(`- Creative metadata: ${report.response.summary?.creative_metadata || "unknown"}`);
-        lines.push("");
-    }
-
-    if (report.comparison) {
-        lines.push("Comparison");
-        lines.push(`- Overall status: ${report.comparison.overall_status}`);
-        (report.comparison.checks || []).forEach((check) => {
-            lines.push(`- ${check.status}: ${check.label} -> ${check.message}`);
-        });
-        lines.push("");
-    }
-
-    const warnings = [
-        ...(report.request?.warnings || []),
-        ...(report.request?.errors || []),
-        ...(report.response?.warnings || []),
-        ...(report.response?.errors || []),
-    ];
-    if (warnings.length) {
-        lines.push("Warnings and Errors");
-        warnings.forEach((item) => lines.push(`- ${item}`));
-    }
-
-    return lines.join("\n");
-}
-
-function downloadBlob(filename, content, mimeType) {
-    const blob = new Blob([content], { type: mimeType });
+    const html = generateHtmlReport();
+    const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bid-analysis-${Date.now()}.html`;
+    a.click();
+    showStatus("HTML report downloaded.", "success");
 }
 
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
+function exportJsonReport() {
+    const json = JSON.stringify(state.report, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bid-analysis-${Date.now()}.json`;
+    a.click();
+    showStatus("JSON report downloaded.", "success");
 }
+
+function generateHtmlReport() {
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <title>Bid Analysis Report</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; }
+        pre { background: #f3f4f6; padding: 1rem; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Bid Analysis Report</h1>
+    <p>Generated: ${new Date().toISOString()}</p>
+    <pre>${JSON.stringify(state.report, null, 2)}</pre>
+</body>
+</html>`;
+}
+
+function showStatus(message, type) {
+    const banner = document.getElementById("status-banner");
+    banner.textContent = message;
+    banner.className = `status-banner ${type}`;
+    banner.classList.remove("hidden");
+
+    setTimeout(() => {
+        banner.classList.add("hidden");
+    }, 5000);
+}
+
+/* Result Tab Navigation */
+document.addEventListener("click", (e) => {
+    if (e.target.closest(".result-tab")) {
+        const tab = e.target.closest(".result-tab");
+        const tabName = tab.dataset.tab;
+
+        // Remove active from all tabs
+        document.querySelectorAll(".result-tab").forEach((t) => {
+            t.classList.remove("active");
+        });
+
+        // Hide all content
+        document.querySelectorAll(".result-tab-content").forEach((content) => {
+            content.classList.remove("active");
+        });
+
+        // Set active
+        tab.classList.add("active");
+        document.getElementById(`tab-${tabName}`).classList.add("active");
+    }
+});
