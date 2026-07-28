@@ -149,18 +149,24 @@
                     <!-- Results Content -->
                     <div id="results-content" class="results-content" style="display:none;">
                         <div class="results-tabs">
-                            <button class="tab-button active" onclick="switchTab('overview', this)">Overview</button>
-                            <button class="tab-button" onclick="switchTab('request', this)">Request</button>
-                            <button class="tab-button" onclick="switchTab('response', this)">Response</button>
-                            <button class="tab-button" onclick="switchTab('compare', this)">Compare</button>
+                            <button class="tab-button active" onclick="switchTab('overview', this)">📊 Overview</button>
+                            <button class="tab-button" onclick="switchTab('request', this)">📋 Request</button>
+                            <button class="tab-button" onclick="switchTab('response', this)">📨 Response</button>
+                            <button class="tab-button" onclick="switchTab('human', this)">💡 Insights</button>
+                            <button class="tab-button" onclick="switchTab('signals', this)">📺 Signals</button>
+                            <button class="tab-button" onclick="switchTab('interview', this)">🎓 Cheatsheet</button>
+                            <button class="tab-button" onclick="switchTab('compare', this)">⚖️ Compare</button>
                             <button class="tab-button" onclick="switchTab('warnings', this)">⚠️ Warnings</button>
-                            <button class="tab-button" onclick="switchTab('raw', this)">Raw</button>
+                            <button class="tab-button" onclick="switchTab('raw', this)">📄 Raw</button>
                         </div>
 
                         <div class="tab-panels">
                             <div class="tab-panel active" id="tab-overview"></div>
                             <div class="tab-panel" id="tab-request"></div>
                             <div class="tab-panel" id="tab-response"></div>
+                            <div class="tab-panel" id="tab-human"></div>
+                            <div class="tab-panel" id="tab-signals"></div>
+                            <div class="tab-panel" id="tab-interview"></div>
                             <div class="tab-panel" id="tab-compare"></div>
                             <div class="tab-panel" id="tab-warnings"></div>
                             <div class="tab-panel" id="tab-raw"></div>

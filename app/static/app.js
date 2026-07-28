@@ -198,86 +198,149 @@ function displayResults(report) {
     document.getElementById("results-placeholder").style.display = "none";
     document.getElementById("results-content").style.display = "block";
 
-    // Overview
-    let overviewHtml = "<div style='display: grid; gap: 1rem;'>";
+    // Overview with KPI Cards
+    let overviewHtml = "<div style='display: grid; gap: 1.5rem;'>";
+
     if (report.request) {
-        overviewHtml += `<div style='padding: 1rem; background: #f0f0f0; border-radius: 6px;'>
-            <h3>📋 Request</h3>
-            <p><strong>ID:</strong> ${report.request.summary?.request_id || "—"}</p>
-            <p><strong>Format:</strong> ${report.request.summary?.ad_format || "—"}</p>
-            <p><strong>Environment:</strong> ${report.request.summary?.environment_guess || "—"}</p>
+        const det = report.request.request_type_detection || {};
+        overviewHtml += `<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
+            <h3 style='margin-bottom: 1rem;'>📋 Bid Request</h3>
+            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;'>
+                <div><strong>ID:</strong> ${report.request.summary?.request_id || "—"}</div>
+                <div><strong>Format:</strong> ${report.request.summary?.ad_format || "—"}</div>
+                <div><strong>Environment:</strong> ${report.request.summary?.environment_guess || "—"}</div>
+                <div><strong>CTV Score:</strong> ${det.ctv_score || 0}/20 (${det.ctv_label || "—"})</div>
+            </div>
         </div>`;
     }
+
     if (report.response) {
-        overviewHtml += `<div style='padding: 1rem; background: #f0f0f0; border-radius: 6px;'>
-            <h3>📨 Response</h3>
-            <p><strong>Bids:</strong> ${report.response.summary?.bid_count || 0}</p>
-            <p><strong>Seats:</strong> ${report.response.summary?.seat_count || 0}</p>
-            <p><strong>Status:</strong> ${report.response.summary?.no_bid_style || "Active Bids"}</p>
+        overviewHtml += `<div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
+            <h3 style='margin-bottom: 1rem;'>📨 Bid Response</h3>
+            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;'>
+                <div><strong>Bids:</strong> ${report.response.summary?.bid_count || 0}</div>
+                <div><strong>Seats:</strong> ${report.response.summary?.seat_count || 0}</div>
+                <div><strong>Max Price:</strong> $${report.response.summary?.max_bid_price || "—"}</div>
+                <div><strong>Status:</strong> ${report.response.summary?.no_bid_style || "Active"}</div>
+            </div>
         </div>`;
     }
+
     overviewHtml += "</div>";
     document.getElementById("tab-overview").innerHTML = overviewHtml;
 
-    // Request
+    // Human Explanations Tab
+    const explanations = report.request?.human_explanations || [];
+    if (explanations.length > 0) {
+        let html = "<div style='display: grid; gap: 1rem;'>";
+        explanations.forEach((exp, i) => {
+            html += `<div style='padding: 1.25rem; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 8px;'>
+                <div style='font-weight: 600; color: #047857; margin-bottom: 0.5rem;'>💡 Insight ${i+1}</div>
+                <div style='color: #1f2937;'>${exp}</div>
+            </div>`;
+        });
+        html += "</div>";
+        // Add to overview if not already showing
+        if (document.getElementById("tab-human")) {
+            document.getElementById("tab-human").innerHTML = html;
+        }
+    }
+
+    // Signals & CTV Tab
+    const signals = report.request?.inferred_signals || {};
+    if (Object.keys(signals).length > 0) {
+        let html = "<div style='display: grid; gap: 1rem;'>";
+        for (const [key, value] of Object.entries(signals)) {
+            const icon = key.includes('ctv') ? '📺' : key.includes('version') ? '📦' : key.includes('privacy') ? '🔒' : '🎯';
+            html += `<div style='padding: 1rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;'>
+                <div style='font-weight: 600; color: #667eea; margin-bottom: 0.5rem;'>${icon} ${key}</div>
+                <div style='color: #475569;'>${typeof value === 'object' ? JSON.stringify(value) : value}</div>
+            </div>`;
+        }
+        html += "</div>";
+        if (document.getElementById("tab-signals")) {
+            document.getElementById("tab-signals").innerHTML = html;
+        }
+    }
+
+    // Interview Cheatsheet Tab
+    const interviewPoints = report.request?.interview_points || [];
+    if (interviewPoints.length > 0) {
+        let html = "<div style='display: grid; gap: 1rem;'>";
+        interviewPoints.forEach((point, i) => {
+            html += `<div style='padding: 1.25rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;'>
+                <div style='font-weight: 600; color: #92400e; margin-bottom: 0.5rem;'>🎓 Point ${i+1}</div>
+                <div style='color: #1f2937;'>${point}</div>
+            </div>`;
+        });
+        html += "</div>";
+        if (document.getElementById("tab-interview")) {
+            document.getElementById("tab-interview").innerHTML = html;
+        }
+    }
+
+    // Request Summary
     if (report.request) {
-        let html = "<div style='display: grid; gap: 0.5rem;'>";
+        let html = "<div style='display: grid; gap: 0.75rem;'>";
         for (const [k, v] of Object.entries(report.request.summary || {})) {
-            html += `<div style='display: flex; gap: 1rem;'><strong style='min-width: 150px;'>${k}:</strong><span>${v}</span></div>`;
+            html += `<div style='padding: 0.75rem; background: #f9fafb; border-radius: 6px; display: flex; justify-content: space-between;'>
+                <strong style='color: #667eea;'>${k}:</strong><span style='color: #475569;'>${typeof v === 'object' ? JSON.stringify(v) : v}</span>
+            </div>`;
         }
         html += "</div>";
         document.getElementById("tab-request").innerHTML = html;
-    } else {
-        document.getElementById("tab-request").innerHTML = "<p>No request data</p>";
     }
 
-    // Response
+    // Response Summary
     if (report.response) {
-        let html = "<div style='display: grid; gap: 0.5rem;'>";
+        let html = "<div style='display: grid; gap: 0.75rem;'>";
         for (const [k, v] of Object.entries(report.response.summary || {})) {
-            html += `<div style='display: flex; gap: 1rem;'><strong style='min-width: 150px;'>${k}:</strong><span>${v}</span></div>`;
+            html += `<div style='padding: 0.75rem; background: #f9fafb; border-radius: 6px; display: flex; justify-content: space-between;'>
+                <strong style='color: #f5576c;'>${k}:</strong><span style='color: #475569;'>${typeof v === 'object' ? JSON.stringify(v) : v}</span>
+            </div>`;
         }
         html += "</div>";
         document.getElementById("tab-response").innerHTML = html;
-    } else {
-        document.getElementById("tab-response").innerHTML = "<p>No response data</p>";
     }
 
-    // Compare
+    // Compare Matrix
     if (report.comparison) {
         let html = "<div style='display: grid; gap: 0.75rem;'>";
         for (const finding of report.comparison.comparison_findings || []) {
-            html += `<div style='padding: 0.75rem; background: #f0f0f0; border-radius: 4px;'>${finding}</div>`;
+            const icon = finding.includes('✓') ? '✅' : finding.includes('⚠') ? '⚠️' : '❌';
+            html += `<div style='padding: 1rem; background: ${finding.includes('✓') ? '#d1fae5' : '#fef3c7'}; border-left: 4px solid ${finding.includes('✓') ? '#10b981' : '#f59e0b'}; border-radius: 6px;'>
+                ${icon} ${finding}
+            </div>`;
         }
         html += "</div>";
         document.getElementById("tab-compare").innerHTML = html;
     } else {
-        document.getElementById("tab-compare").innerHTML = "<p>Run compare mode to see comparison</p>";
+        document.getElementById("tab-compare").innerHTML = "<p>Compare both request and response to see verification results</p>";
     }
 
-    // Warnings
+    // Warnings & Errors
     const warnings = [
         ...(report.request?.warnings || []),
         ...(report.response?.warnings || [])
     ];
     if (warnings.length === 0) {
-        document.getElementById("tab-warnings").innerHTML = "<p style='color: #10b981;'>✓ No warnings</p>";
+        document.getElementById("tab-warnings").innerHTML = "<p style='color: #10b981; font-weight: 600;'>✓ No warnings or errors detected</p>";
     } else {
         let html = "<div style='display: grid; gap: 0.75rem;'>";
         warnings.forEach(w => {
-            html += `<div style='padding: 0.75rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;'>${w}</div>`;
+            html += `<div style='padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px; color: #92400e;'>⚠️ ${w}</div>`;
         });
         html += "</div>";
         document.getElementById("tab-warnings").innerHTML = html;
     }
 
-    // Raw
-    document.getElementById("tab-raw").innerHTML = `<pre>${JSON.stringify(report, null, 2)}</pre>`;
+    // Raw JSON Tree
+    document.getElementById("tab-raw").innerHTML = `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${JSON.stringify(report, null, 2)}</pre>`;
 }
 
 function switchTab(tabName, btn) {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(c => c.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById(`tab-${tabName}`).classList.add("active");
 }
