@@ -22,7 +22,9 @@
       "Bash(git commit -m 'Simplify UI with clean, reliable design *)",
       "Bash(git commit -m 'Modern UI redesign with sleek, trendy design *)",
       "Bash(grep -v \"//\")",
-      "Bash(git commit -m 'Phase 2 bugfix: Tab switching CSS and JavaScript initialization *)"
+      "Bash(git commit -m 'Phase 2 bugfix: Tab switching CSS and JavaScript initialization *)",
+      "Bash(node -c app/static/app.js)",
+      "Bash(git commit -m 'Phase 3: Visual Design & KPI Metrics Enhancements *)"
     ]
   }
 }

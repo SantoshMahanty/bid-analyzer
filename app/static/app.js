@@ -201,66 +201,167 @@ function displayResults(report) {
     document.getElementById("results-placeholder").style.display = "none";
     document.getElementById("results-content").style.display = "block";
 
-    // Overview with KPI Cards
-    let overviewHtml = "<div style='display: grid; gap: 1.5rem;'>";
+    // Phase 3: Enhanced Overview with KPI Metrics Dashboard
+    let overviewHtml = "<div style='display: grid; gap: 2rem;'>";
 
     if (report.request) {
         const det = report.request.request_type_detection || {};
-        overviewHtml += `<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
-            <h3 style='margin-bottom: 1rem;'>📋 Bid Request</h3>
-            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;'>
-                <div><strong>ID:</strong> ${report.request.summary?.request_id || "—"}</div>
-                <div><strong>Format:</strong> ${report.request.summary?.ad_format || "—"}</div>
-                <div><strong>Environment:</strong> ${report.request.summary?.environment_guess || "—"}</div>
-                <div><strong>CTV Score:</strong> ${det.ctv_score || 0}/20 (${det.ctv_label || "—"})</div>
-            </div>
-        </div>`;
+        const ctvScore = det.ctv_score || 0;
+        const ctvPercent = Math.min((ctvScore / 20) * 100, 100);
+        overviewHtml += `
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
+                    <div>
+                        <h3 style='margin: 0; font-size: 1.5rem;'>📋 Bid Request</h3>
+                        <p style='margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;'>${report.request.summary?.ad_format || "Standard"} • ${report.request.summary?.environment_guess || "Web"}</p>
+                    </div>
+                    <div style='text-align: right;'>
+                        <div style='font-size: 2rem; font-weight: 800;'>${report.request.summary?.impression_count || 1}</div>
+                        <div style='font-size: 0.85rem; opacity: 0.9;'>Impressions</div>
+                    </div>
+                </div>
+
+                <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
+                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px;'>
+                        <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Request ID</div>
+                        <div style='font-size: 0.85rem; word-break: break-all;'>${(report.request.summary?.request_id || "—").substring(0, 12)}</div>
+                    </div>
+                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px;'>
+                        <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Devices</div>
+                        <div style='font-size: 0.85rem;'>${report.request.summary?.device_type_count || 1} types</div>
+                    </div>
+                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px;'>
+                        <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Publishers</div>
+                        <div style='font-size: 0.85rem;'>${report.request.summary?.publisher_count || 1}</div>
+                    </div>
+                </div>
+
+                <div style='margin-top: 1.5rem;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
+                        <span style='font-size: 0.9rem;'>🎯 CTV Confidence Score</span>
+                        <span style='font-size: 1rem; font-weight: 700;'>${ctvScore}/20</span>
+                    </div>
+                    <div style='background: rgba(255,255,255,0.2); border-radius: 10px; height: 10px; overflow: hidden;'>
+                        <div style='background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444); width: ${ctvPercent}%; height: 100%; transition: width 0.3s;'></div>
+                    </div>
+                    <div style='font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8;'>${det.ctv_label || "Analyzing..."}</div>
+                </div>
+            </div>`;
     }
 
     if (report.response) {
-        overviewHtml += `<div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
-            <h3 style='margin-bottom: 1rem;'>📨 Bid Response</h3>
-            <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;'>
-                <div><strong>Bids:</strong> ${report.response.summary?.bid_count || 0}</div>
-                <div><strong>Seats:</strong> ${report.response.summary?.seat_count || 0}</div>
-                <div><strong>Max Price:</strong> $${report.response.summary?.max_bid_price || "—"}</div>
-                <div><strong>Status:</strong> ${report.response.summary?.no_bid_style || "Active"}</div>
-            </div>
-        </div>`;
+        const bidCount = report.response.summary?.bid_count || 0;
+        const seatCount = report.response.summary?.seat_count || 0;
+        overviewHtml += `
+            <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);'>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
+                    <div>
+                        <h3 style='margin: 0; font-size: 1.5rem;'>📨 Bid Response</h3>
+                        <p style='margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;'>${bidCount > 0 ? "Active Bids" : "No Bids"} • ${seatCount} Seat${seatCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div style='text-align: right;'>
+                        <div style='font-size: 2rem; font-weight: 800;'>$${report.response.summary?.max_bid_price || "0"}</div>
+                        <div style='font-size: 0.85rem; opacity: 0.9;'>Max Bid</div>
+                    </div>
+                </div>
+
+                <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
+                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px; text-align: center;'>
+                        <div style='font-size: 1.5rem; font-weight: 700;'>${bidCount}</div>
+                        <div style='font-size: 0.75rem; opacity: 0.9;'>Total Bids</div>
+                    </div>
+                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px; text-align: center;'>
+                        <div style='font-size: 1.5rem; font-weight: 700;'>${seatCount}</div>
+                        <div style='font-size: 0.75rem; opacity: 0.9;'>Seat Count</div>
+                    </div>
+                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px; text-align: center;'>
+                        <div style='font-size: 1.5rem; font-weight: 700;'>${report.response.summary?.avg_bid_price ? "$" + report.response.summary.avg_bid_price : "—"}</div>
+                        <div style='font-size: 0.75rem; opacity: 0.9;'>Avg Bid</div>
+                    </div>
+                </div>
+
+                <div style='margin-top: 1.5rem;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
+                        <span style='font-size: 0.9rem;'>📊 Response Health</span>
+                        <span style='background: ${bidCount > 0 ? "rgba(74, 222, 128, 0.3)" : "rgba(239, 68, 68, 0.3)"}; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;'>${bidCount > 0 ? "✓ Healthy" : "⚠️ No Bids"}</span>
+                    </div>
+                </div>
+            </div>`;
     }
 
     overviewHtml += "</div>";
     document.getElementById("tab-overview").innerHTML = overviewHtml;
 
-    // Human Explanations Tab
+    // Phase 3: Enhanced Human Explanations Tab
     const explanations = report.request?.human_explanations || [];
     if (explanations.length > 0) {
-        let html = "<div style='display: grid; gap: 1rem;'>";
+        let html = `<div style='display: grid; gap: 1rem;'>
+            <div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
+                <h3 style='margin: 0 0 0.5rem 0;'>💡 Key Insights</h3>
+                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${explanations.length} important finding${explanations.length !== 1 ? "s" : ""}</p>
+            </div>
+
+            <div style='display: grid; gap: 1rem;'>`;
+
         explanations.forEach((exp, i) => {
-            html += `<div style='padding: 1.25rem; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 8px;'>
-                <div style='font-weight: 600; color: #047857; margin-bottom: 0.5rem;'>💡 Insight ${i+1}</div>
-                <div style='color: #1f2937;'>${exp}</div>
+            const colors = ['#f0fdf4', '#d1fae5', '#a7f3d0'];
+            const borderColors = ['#10b981', '#059669', '#047857'];
+            html += `<div style='padding: 1.5rem; background: ${colors[i % 3]}; border-left: 4px solid ${borderColors[i % 3]}; border-radius: 10px;'>
+                <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
+                    <span style='font-size: 1.5rem;'>💡</span>
+                    <div>
+                        <div style='font-weight: 700; color: #047857; margin-bottom: 0.5rem;'>Insight ${i+1}</div>
+                        <div style='color: #1f2937; line-height: 1.5;'>${exp}</div>
+                    </div>
+                </div>
             </div>`;
         });
-        html += "</div>";
-        // Add to overview if not already showing
+        html += "</div></div>";
         if (document.getElementById("tab-human")) {
             document.getElementById("tab-human").innerHTML = html;
         }
     }
 
-    // Signals & CTV Tab
+    // Phase 3: Enhanced Signals & CTV Tab
     const signals = report.request?.inferred_signals || {};
     if (Object.keys(signals).length > 0) {
-        let html = "<div style='display: grid; gap: 1rem;'>";
+        let html = `<div style='display: grid; gap: 1rem;'>
+            <div style='background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
+                <h3 style='margin: 0 0 0.5rem 0;'>📺 Detected Signals</h3>
+                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${Object.keys(signals).length} signal${Object.keys(signals).length !== 1 ? "s" : ""} identified</p>
+            </div>
+
+            <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;'>`;
+
         for (const [key, value] of Object.entries(signals)) {
-            const icon = key.includes('ctv') ? '📺' : key.includes('version') ? '📦' : key.includes('privacy') ? '🔒' : '🎯';
-            html += `<div style='padding: 1rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;'>
-                <div style='font-weight: 600; color: #667eea; margin-bottom: 0.5rem;'>${icon} ${key}</div>
-                <div style='color: #475569;'>${typeof value === 'object' ? JSON.stringify(value) : value}</div>
+            let icon, bgColor, borderColor;
+            if (key.includes('ctv')) {
+                icon = '📺';
+                bgColor = '#fdf2f8';
+                borderColor = '#be185d';
+            } else if (key.includes('version')) {
+                icon = '📦';
+                bgColor = '#eff6ff';
+                borderColor = '#0369a1';
+            } else if (key.includes('privacy')) {
+                icon = '🔒';
+                bgColor = '#f0fdf4';
+                borderColor = '#059669';
+            } else {
+                icon = '🎯';
+                bgColor = '#fefce8';
+                borderColor = '#ca8a04';
+            }
+
+            html += `<div style='padding: 1.25rem; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 10px;'>
+                <div style='display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem;'>
+                    <span style='font-size: 1.5rem;'>${icon}</span>
+                    <div style='font-weight: 700; flex: 1;'>${key.replace(/_/g, ' ').toUpperCase()}</div>
+                </div>
+                <div style='font-size: 0.9rem; color: #475569; line-height: 1.5;'>${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</div>
             </div>`;
         }
-        html += "</div>";
+        html += "</div></div>";
         if (document.getElementById("tab-signals")) {
             document.getElementById("tab-signals").innerHTML = html;
         }
@@ -306,34 +407,114 @@ function displayResults(report) {
         document.getElementById("tab-response").innerHTML = html;
     }
 
-    // Compare Matrix
+    // Phase 3: Enhanced Compare Matrix with Visual Grid
     if (report.comparison) {
-        let html = "<div style='display: grid; gap: 0.75rem;'>";
-        for (const finding of report.comparison.comparison_findings || []) {
-            const icon = finding.includes('✓') ? '✅' : finding.includes('⚠') ? '⚠️' : '❌';
-            html += `<div style='padding: 1rem; background: ${finding.includes('✓') ? '#d1fae5' : '#fef3c7'}; border-left: 4px solid ${finding.includes('✓') ? '#10b981' : '#f59e0b'}; border-radius: 6px;'>
-                ${icon} ${finding}
+        let html = `<div style='display: grid; gap: 1rem;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
+                <h3 style='margin: 0 0 0.5rem 0;'>⚖️ Request vs Response Verification</h3>
+                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${report.comparison.comparison_findings?.length || 0} findings analyzed</p>
+            </div>
+
+            <div style='display: grid; gap: 0.75rem;'>`;
+
+        const findings = report.comparison.comparison_findings || [];
+        const matched = findings.filter(f => f.includes('✓')).length;
+        const warnings = findings.filter(f => f.includes('⚠')).length;
+        const failed = findings.filter(f => f.includes('❌')).length;
+
+        // Summary Stats
+        html += `<div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
+            <div style='background: #d1fae5; border-left: 4px solid #10b981; padding: 1rem; border-radius: 8px;'>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #047857;'>${matched}</div>
+                <div style='font-size: 0.85rem; color: #065f46;'>✓ Matched</div>
+            </div>
+            <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 8px;'>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #92400e;'>${warnings}</div>
+                <div style='font-size: 0.85rem; color: #78350f;'>⚠️ Warnings</div>
+            </div>
+            <div style='background: #fee2e2; border-left: 4px solid #ef4444; padding: 1rem; border-radius: 8px;'>
+                <div style='font-size: 1.5rem; font-weight: 700; color: #991b1b;'>${failed}</div>
+                <div style='font-size: 0.85rem; color: #7f1d1d;'>❌ Errors</div>
+            </div>
+        </div>`;
+
+        // Detailed Findings
+        for (const finding of findings) {
+            let bgColor, borderColor, textColor, icon;
+            if (finding.includes('✓')) {
+                bgColor = '#d1fae5';
+                borderColor = '#10b981';
+                textColor = '#065f46';
+                icon = '✅';
+            } else if (finding.includes('⚠')) {
+                bgColor = '#fef3c7';
+                borderColor = '#f59e0b';
+                textColor = '#78350f';
+                icon = '⚠️';
+            } else {
+                bgColor = '#fee2e2';
+                borderColor = '#ef4444';
+                textColor = '#7f1d1d';
+                icon = '❌';
+            }
+
+            html += `<div style='padding: 1.25rem; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 8px; color: ${textColor};'>
+                <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
+                    <span style='font-size: 1.25rem;'>${icon}</span>
+                    <div style='flex: 1;'>${finding}</div>
+                </div>
             </div>`;
         }
-        html += "</div>";
+
+        html += "</div></div>";
         document.getElementById("tab-compare").innerHTML = html;
     } else {
-        document.getElementById("tab-compare").innerHTML = "<p>Compare both request and response to see verification results</p>";
+        document.getElementById("tab-compare").innerHTML = `<div style='padding: 2rem; text-align: center; color: #6b7280;'>
+            <p style='font-size: 1rem; margin: 0;'>📊 Compare both request and response to see verification results</p>
+            <p style='font-size: 0.85rem; margin: 0.5rem 0 0 0; opacity: 0.8;'>Paste or upload both payloads in Request and Response modes, then use Compare mode</p>
+        </div>`;
     }
 
-    // Warnings & Errors
+    // Phase 3: Enhanced Warnings with Categories
     const warnings = [
         ...(report.request?.warnings || []),
         ...(report.response?.warnings || [])
     ];
     if (warnings.length === 0) {
-        document.getElementById("tab-warnings").innerHTML = "<p style='color: #10b981; font-weight: 600;'>✓ No warnings or errors detected</p>";
+        document.getElementById("tab-warnings").innerHTML = `
+            <div style='padding: 2rem; text-align: center; background: #d1fae5; border-radius: 12px; border: 2px solid #10b981;'>
+                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>✓</div>
+                <p style='color: #047857; font-weight: 600; margin: 0;'>All Clear!</p>
+                <p style='color: #065f46; font-size: 0.9rem; margin: 0.5rem 0 0 0;'>No warnings or errors detected in your payloads</p>
+            </div>`;
     } else {
-        let html = "<div style='display: grid; gap: 0.75rem;'>";
-        warnings.forEach(w => {
-            html += `<div style='padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px; color: #92400e;'>⚠️ ${w}</div>`;
+        let html = `<div style='display: grid; gap: 1rem;'>
+            <div style='background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
+                <h3 style='margin: 0 0 0.5rem 0;'>⚠️ Issues Found</h3>
+                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${warnings.length} warning${warnings.length !== 1 ? "s" : ""} detected</p>
+            </div>
+
+            <div style='display: grid; gap: 0.75rem;'>`;
+
+        warnings.forEach((w, idx) => {
+            const level = w.toLowerCase().includes('error') || w.toLowerCase().includes('critical') ? 'error' : 'warning';
+            const bgColor = level === 'error' ? '#fee2e2' : '#fef3c7';
+            const borderColor = level === 'error' ? '#ef4444' : '#f59e0b';
+            const textColor = level === 'error' ? '#7f1d1d' : '#92400e';
+            const icon = level === 'error' ? '🚨' : '⚠️';
+
+            html += `<div style='padding: 1.25rem; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 8px; color: ${textColor};'>
+                <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
+                    <span style='font-size: 1.25rem;'>${icon}</span>
+                    <div>
+                        <div style='font-weight: 600; margin-bottom: 0.25rem;'>${level === 'error' ? 'Error' : 'Warning'} #${idx + 1}</div>
+                        <div>${w}</div>
+                    </div>
+                </div>
+            </div>`;
         });
-        html += "</div>";
+
+        html += "</div></div>";
         document.getElementById("tab-warnings").innerHTML = html;
     }
 
