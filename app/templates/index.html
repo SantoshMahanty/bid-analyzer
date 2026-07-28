@@ -27,48 +27,58 @@
             <section class="input-column">
                 <div class="section-heading">
                     <div>
-                        <p class="panel-kicker">Input Workspace</p>
-                        <h2>Request and response</h2>
+                        <p class="panel-kicker">Analysis Mode</p>
+                        <h2>Select your analysis</h2>
                     </div>
-                    <p class="section-copy">Keep one side empty if you only want single-payload analysis.</p>
+                    <p class="section-copy">Choose what you want to analyze.</p>
                 </div>
+
+                <section class="mode-selector">
+                    <label class="field-label" for="analysis-mode">Analysis Type</label>
+                    <select id="analysis-mode" class="mode-dropdown">
+                        <option value="request">Request Analyzer</option>
+                        <option value="response">Response Analyzer</option>
+                        <option value="compare">Compare Request to Response</option>
+                    </select>
+                </section>
 
                 <section class="workflow-strip">
                     <div class="workflow-step">
                         <span class="step-index">1</span>
                         <div>
-                            <strong>Load input</strong>
-                            <p>Paste JSON, upload a file, or fetch from a public URL.</p>
+                            <strong>Upload or paste</strong>
+                            <p>Load your JSON payload using file upload, paste, or public URL.</p>
                         </div>
                     </div>
                     <div class="workflow-step">
                         <span class="step-index">2</span>
                         <div>
                             <strong>Run analysis</strong>
-                            <p>Validate structure, classify traffic, and compare request to response.</p>
+                            <p>Inspect structure, detect signals, and validate against OpenRTB spec.</p>
                         </div>
                     </div>
                     <div class="workflow-step">
                         <span class="step-index">3</span>
                         <div>
-                            <strong>Inspect output</strong>
-                            <p>Review warnings, raw fields, interview notes, and exportable reports.</p>
+                            <strong>Review results</strong>
+                            <p>Explore field details, warnings, signals, and export readable reports.</p>
                         </div>
                     </div>
                 </section>
 
-                <section class="input-stack">
-                    <article class="panel input-panel">
+                <section class="input-stack" id="input-stack">
+                    <!-- Request Analyzer Panel -->
+                    <article class="panel input-panel mode-panel" id="mode-request" style="display: none;">
                         <div class="panel-heading">
                             <div>
-                                <p class="panel-kicker">Input A</p>
+                                <p class="panel-kicker">Input</p>
                                 <h3>Bid Request</h3>
                             </div>
                             <span class="source-pill" id="request-source-pill">Idle</span>
                         </div>
                         <div class="panel-helper">
                             <span class="mini-pill">Accepts object or array JSON</span>
-                            <span class="mini-pill">Best for request payloads with `imp`</span>
+                            <span class="mini-pill">OpenRTB 2.5/2.6 request format</span>
                         </div>
 
                         <label class="field-label" for="request-sample">Sample file</label>
@@ -94,17 +104,18 @@
                         </div>
                     </article>
 
-                    <article class="panel input-panel">
+                    <!-- Response Analyzer Panel -->
+                    <article class="panel input-panel mode-panel" id="mode-response" style="display: none;">
                         <div class="panel-heading">
                             <div>
-                                <p class="panel-kicker">Input B</p>
+                                <p class="panel-kicker">Input</p>
                                 <h3>Bid Response</h3>
                             </div>
                             <span class="source-pill" id="response-source-pill">Idle</span>
                         </div>
                         <div class="panel-helper">
                             <span class="mini-pill">Accepts seatbid, nbr, or full response JSON</span>
-                            <span class="mini-pill">Best for bid responses and no-bid payloads</span>
+                            <span class="mini-pill">OpenRTB 2.5/2.6 response format</span>
                         </div>
 
                         <label class="field-label" for="response-sample">Sample file</label>
@@ -129,6 +140,81 @@
                             </div>
                         </div>
                     </article>
+
+                    <!-- Compare Panels -->
+                    <div class="compare-panels" id="mode-compare" style="display: none;">
+                        <article class="panel input-panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <p class="panel-kicker">Input A</p>
+                                    <h3>Bid Request</h3>
+                                </div>
+                                <span class="source-pill" id="compare-request-pill">Idle</span>
+                            </div>
+                            <div class="panel-helper">
+                                <span class="mini-pill">Accepts object or array JSON</span>
+                                <span class="mini-pill">Best for request payloads with `imp`</span>
+                            </div>
+
+                            <label class="field-label" for="compare-request-sample">Sample file</label>
+                            <div class="sample-row">
+                                <select id="compare-request-sample" class="text-input">
+                                    <option value="">Choose a request sample</option>
+                                </select>
+                                <button type="button" class="ghost-button" data-load-sample="compare-request">Use</button>
+                            </div>
+
+                            <label class="field-label" for="compare-request-raw">Raw JSON or body</label>
+                            <textarea id="compare-request-raw" class="code-input" placeholder='{"id":"req-1","imp":[...]}'></textarea>
+
+                            <div class="compact-grid">
+                                <div>
+                                    <label class="field-label" for="compare-request-url">Public URL</label>
+                                    <input id="compare-request-url" class="text-input" type="url" placeholder="https://example.com/request.json">
+                                </div>
+                                <div>
+                                    <label class="field-label" for="compare-request-file">Upload file</label>
+                                    <input id="compare-request-file" class="file-input" type="file" accept=".json,.txt,.gz,.log">
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="panel input-panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <p class="panel-kicker">Input B</p>
+                                    <h3>Bid Response</h3>
+                                </div>
+                                <span class="source-pill" id="compare-response-pill">Idle</span>
+                            </div>
+                            <div class="panel-helper">
+                                <span class="mini-pill">Accepts seatbid, nbr, or full response JSON</span>
+                                <span class="mini-pill">Best for bid responses and no-bid payloads</span>
+                            </div>
+
+                            <label class="field-label" for="compare-response-sample">Sample file</label>
+                            <div class="sample-row">
+                                <select id="compare-response-sample" class="text-input">
+                                    <option value="">Choose a response sample</option>
+                                </select>
+                                <button type="button" class="ghost-button" data-load-sample="compare-response">Use</button>
+                            </div>
+
+                            <label class="field-label" for="compare-response-raw">Raw JSON or body</label>
+                            <textarea id="compare-response-raw" class="code-input" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
+
+                            <div class="compact-grid">
+                                <div>
+                                    <label class="field-label" for="compare-response-url">Public URL</label>
+                                    <input id="compare-response-url" class="text-input" type="url" placeholder="https://example.com/response.json">
+                                </div>
+                                <div>
+                                    <label class="field-label" for="compare-response-file">Upload file</label>
+                                    <input id="compare-response-file" class="file-input" type="file" accept=".json,.txt,.gz,.log">
+                                </div>
+                            </div>
+                        </article>
+                    </div>
                 </section>
 
                 <section class="panel toolbar-panel">

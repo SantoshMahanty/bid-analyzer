@@ -641,3 +641,63 @@ pre {
         min-height: 170px;
     }
 }
+
+/* Mode Selector Styles */
+.mode-selector {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: var(--panel-alt);
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+}
+
+.mode-dropdown {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-dropdown:hover {
+    border-color: var(--accent);
+    background: var(--panel-soft);
+}
+
+.mode-dropdown:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Dynamic mode panels */
+.mode-panel {
+    display: none;
+}
+
+.mode-panel.active {
+    display: block;
+}
+
+/* Compare panels layout */
+.compare-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.compare-panels.active {
+    display: grid;
+}
+
+@media (max-width: 900px) {
+    .compare-panels {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+}

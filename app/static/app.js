@@ -1,13 +1,50 @@
 const state = {
     samples: [],
     report: null,
+    currentMode: "request",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
     bindTabNavigation();
+    bindModeSelector();
     bindActions();
     loadSamples();
+    initializeMode();
 });
+
+function bindModeSelector() {
+    const modeSelect = document.getElementById("analysis-mode");
+    modeSelect.addEventListener("change", (e) => {
+        state.currentMode = e.target.value;
+        updateModeDisplay();
+    });
+}
+
+function initializeMode() {
+    state.currentMode = "request";
+    updateModeDisplay();
+}
+
+function updateModeDisplay() {
+    // Hide all mode panels
+    document.querySelectorAll(".mode-panel").forEach((panel) => panel.classList.remove("active"));
+    document.getElementById("mode-compare").style.display = "none";
+
+    if (state.currentMode === "request") {
+        document.getElementById("mode-request").classList.add("active");
+        document.getElementById("mode-request").style.display = "block";
+        document.getElementById("load-default-btn").style.display = "inline-block";
+    } else if (state.currentMode === "response") {
+        document.getElementById("mode-response").classList.add("active");
+        document.getElementById("mode-response").style.display = "block";
+        document.getElementById("load-default-btn").style.display = "inline-block";
+    } else if (state.currentMode === "compare") {
+        document.getElementById("mode-compare").style.display = "grid";
+        document.getElementById("load-default-btn").style.display = "inline-block";
+    }
+
+    clearAll();
+}
 
 function bindActions() {
     document.getElementById("analyze-btn").addEventListener("click", analyzeWorkflow);
@@ -43,6 +80,8 @@ async function loadSamples() {
         state.samples = data.samples || [];
         populateSampleSelect("request-sample", "request");
         populateSampleSelect("response-sample", "response");
+        populateSampleSelect("compare-request-sample", "request");
+        populateSampleSelect("compare-response-sample", "response");
     } catch (error) {
         showStatus("Unable to load sample files.", "error");
     }
@@ -61,38 +100,59 @@ function populateSampleSelect(selectId, kind) {
 }
 
 function applySelectedSample(target) {
-    const select = document.getElementById(`${target}-sample`);
-    const sample = state.samples.find((item) => item.name === select.value);
-    if (!sample) {
-        showStatus(`Choose a ${target} sample first.`, "info");
+    // Handle compare mode targets
+    const sampleSelectId = target.includes("compare") ? `${target}-sample` : `${target}-sample`;
+    const select = document.getElementById(sampleSelectId);
+
+    if (!select) {
+        showStatus(`Sample selector not found for ${target}.`, "error");
         return;
     }
-    document.getElementById(`${target}-raw`).value = sample.content;
-    document.getElementById(`${target}-url`).value = "";
-    document.getElementById(`${target}-file`).value = "";
-    showStatus(`${sample.name} loaded into the ${target} panel.`, "info");
+
+    const sample = state.samples.find((item) => item.name === select.value);
+    if (!sample) {
+        showStatus(`Choose a ${target.replace("compare-", "")} sample first.`, "info");
+        return;
+    }
+
+    const rawId = `${target}-raw`;
+    const urlId = `${target}-url`;
+    const fileId = `${target}-file`;
+
+    if (document.getElementById(rawId)) document.getElementById(rawId).value = sample.content;
+    if (document.getElementById(urlId)) document.getElementById(urlId).value = "";
+    if (document.getElementById(fileId)) document.getElementById(fileId).value = "";
+
+    showStatus(`${sample.name} loaded.`, "info");
 }
 
 function loadDefaultSamples() {
     const requestSample = state.samples.find((sample) => sample.name === "sample_request_ctv.json");
     const responseSample = state.samples.find((sample) => sample.name === "sample_response_ctv.json");
-    if (requestSample) {
+
+    if (state.currentMode === "request" && requestSample) {
         document.getElementById("request-raw").value = requestSample.content;
-    }
-    if (responseSample) {
+        showStatus("Loaded sample CTV request.", "info");
+    } else if (state.currentMode === "response" && responseSample) {
         document.getElementById("response-raw").value = responseSample.content;
+        showStatus("Loaded sample CTV response.", "info");
+    } else if (state.currentMode === "compare") {
+        if (requestSample) document.getElementById("compare-request-raw").value = requestSample.content;
+        if (responseSample) document.getElementById("compare-response-raw").value = responseSample.content;
+        showStatus("Loaded default CTV request and response samples.", "info");
     }
-    showStatus("Loaded the default CTV request and response samples.", "info");
 }
 
 function clearAll() {
-    ["request", "response"].forEach((target) => {
-        document.getElementById(`${target}-raw`).value = "";
-        document.getElementById(`${target}-url`).value = "";
-        document.getElementById(`${target}-file`).value = "";
-        document.getElementById(`${target}-sample`).value = "";
-        document.getElementById(`${target}-source-pill`).textContent = "Idle";
-    });
+    // Clear mode-specific panels
+    if (state.currentMode === "request") {
+        ["request"].forEach((target) => clearPanel(target));
+    } else if (state.currentMode === "response") {
+        ["response"].forEach((target) => clearPanel(target));
+    } else if (state.currentMode === "compare") {
+        ["compare-request", "compare-response"].forEach((target) => clearPanel(target));
+    }
+
     state.report = null;
     updateExportButtons(false);
     document.getElementById("results").classList.add("hidden");
@@ -100,6 +160,20 @@ function clearAll() {
     document.getElementById("overall-status").textContent = "Ready";
     document.getElementById("overall-status").className = "status-chip neutral";
     hideStatus();
+}
+
+function clearPanel(target) {
+    const rawId = `${target}-raw`;
+    const urlId = `${target}-url`;
+    const fileId = `${target}-file`;
+    const sampleId = `${target}-sample`;
+    const pillId = `${target}-pill`;
+
+    if (document.getElementById(rawId)) document.getElementById(rawId).value = "";
+    if (document.getElementById(urlId)) document.getElementById(urlId).value = "";
+    if (document.getElementById(fileId)) document.getElementById(fileId).value = "";
+    if (document.getElementById(sampleId)) document.getElementById(sampleId).value = "";
+    if (document.getElementById(pillId)) document.getElementById(pillId).textContent = "Idle";
 }
 
 function panelHasInput(target) {
@@ -121,42 +195,57 @@ function buildFormData(target) {
 }
 
 async function analyzeWorkflow() {
-    const hasRequest = panelHasInput("request");
-    const hasResponse = panelHasInput("response");
-
-    if (!hasRequest && !hasResponse) {
-        showStatus("Enter a request, a response, or both before analyzing.", "error");
-        return;
-    }
-
     setBusy(true);
-    showStatus("Analyzing payloads and applying OpenRTB-aware rules.", "info");
+    let report = {
+        request: null,
+        response: null,
+        comparison: null,
+        createdAt: new Date().toISOString(),
+    };
 
     try {
-        const report = {
-            request: null,
-            response: null,
-            comparison: null,
-            createdAt: new Date().toISOString(),
-        };
-
-        if (hasRequest) {
+        if (state.currentMode === "request") {
+            if (!panelHasInput("request")) {
+                showStatus("Upload or paste a bid request to analyze.", "error");
+                setBusy(false);
+                return;
+            }
+            showStatus("Analyzing bid request and applying OpenRTB rules.", "info");
             report.request = await postForm("/analyze/request", buildFormData("request"));
             applySourcePill("request", report.request);
-        }
-
-        if (hasResponse) {
+        } else if (state.currentMode === "response") {
+            if (!panelHasInput("response")) {
+                showStatus("Upload or paste a bid response to analyze.", "error");
+                setBusy(false);
+                return;
+            }
+            showStatus("Analyzing bid response and detecting signals.", "info");
             report.response = await postForm("/analyze/response", buildFormData("response"));
             applySourcePill("response", report.response);
-        }
+        } else if (state.currentMode === "compare") {
+            const hasRequest = panelHasInput("compare-request");
+            const hasResponse = panelHasInput("compare-response");
 
-        if (report.request?.raw_payload && report.response?.raw_payload) {
-            report.comparison = await postJson("/analyze/compare", {
-                request_payload: report.request.raw_payload,
-                response_payload: report.response.raw_payload,
-                request_analysis: report.request,
-                response_analysis: report.response,
-            });
+            if (!hasRequest || !hasResponse) {
+                showStatus("Provide both bid request and response to compare.", "error");
+                setBusy(false);
+                return;
+            }
+
+            showStatus("Analyzing and comparing request vs response.", "info");
+            report.request = await postForm("/analyze/request", buildFormData("compare-request"));
+            report.response = await postForm("/analyze/response", buildFormData("compare-response"));
+            applySourcePill("compare-request", report.request);
+            applySourcePill("compare-response", report.response);
+
+            if (report.request?.raw_payload && report.response?.raw_payload) {
+                report.comparison = await postJson("/analyze/compare", {
+                    request_payload: report.request.raw_payload,
+                    response_payload: report.response.raw_payload,
+                    request_analysis: report.request,
+                    response_analysis: report.response,
+                });
+            }
         }
 
         state.report = report;
