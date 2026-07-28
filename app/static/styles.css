@@ -103,17 +103,20 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 1.5rem 2rem;
 }
 
-.logo {
+.header-left {
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex: 1;
 }
 
 .logo-icon {
     font-size: 2.5rem;
     animation: float 3s ease-in-out infinite;
+    flex-shrink: 0;
 }
 
 @keyframes float {
@@ -121,57 +124,67 @@ html, body {
     50% { transform: translateY(-10px); }
 }
 
-.logo h1 {
-    font-size: 1.75rem;
+.header-text h1 {
+    font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: -0.5px;
+    margin: 0;
+    line-height: 1.2;
 }
 
-.logo p {
-    font-size: 0.9rem;
+.header-text p {
+    font-size: 0.8rem;
     opacity: 0.9;
     font-weight: 500;
+    margin: 0.2rem 0 0 0;
+    letter-spacing: 0.5px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
 }
 
 .header-link {
     color: white;
     text-decoration: none;
-    padding: 0.75rem 1.5rem;
-    border: 2px solid white;
-    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 6px;
     font-weight: 600;
+    font-size: 0.95rem;
     transition: all 0.3s;
+    white-space: nowrap;
 }
 
 .header-link:hover {
     background: white;
     color: var(--primary);
-    transform: scale(1.05);
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .header-btn {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
     color: white;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    font-size: 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    font-size: 1.2rem;
     cursor: pointer;
     transition: all 0.3s;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .header-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
     transform: scale(1.1);
 }
 
