@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRTB 2.6 Interactive Guide - Bid Analyzer</title>
+    <meta name="description" content="A comprehensive interactive tutorial on OpenRTB 2.6 standards, including CTV Ad Pods, Structured User-Agents, Counting Methodologies, and No-Bid signaling.">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --tutorial-bg: #070e17;
+            --tutorial-panel: rgba(16, 27, 43, 0.72);
+            --tutorial-accent: #ffa85e;
+            --tutorial-cool: #64d1c4;
+            --tutorial-success: #88e0ad;
+            --tutorial-warning: #ffd479;
+            --tutorial-line: rgba(198, 216, 236, 0.11);
+            --tutorial-muted: #95a8c0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: 
+                radial-gradient(circle at top left, rgba(100, 209, 196, 0.15), transparent 28%),
+                radial-gradient(circle at 80% 20%, rgba(255, 168, 94, 0.12), transparent 25%),
+                linear-gradient(180deg, var(--tutorial-bg) 0%, #0b1522 50%, #060c13 100%);
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+        }
+
+        .tutorial-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--tutorial-line);
+            background: rgba(10, 20, 34, 0.85);
+            backdrop-filter: blur(16px);
+            padding: 20px 24px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .back-nav {
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 12px;
+            background: var(--accent-soft);
+            border: 1px solid rgba(255, 168, 94, 0.24);
+            transition: all 0.2s ease;
+        }
+
+        .back-nav:hover {
+            background: var(--tutorial-accent);
+            color: #111;
+            transform: translateY(-2px);
+        }
+
+        .tutorial-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .tutorial-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Sidebar Navigation */
+        .tutorial-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: sticky;
+            top: 24px;
+            background: rgba(10, 20, 34, 0.6);
+            border: 1px solid var(--tutorial-line);
+            padding: 16px;
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+        }
+
+        @media (max-width: 900px) {
+            .tutorial-nav {
+                position: static;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--tutorial-muted);
+            text-align: left;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .nav-btn {
+                width: auto;
+                flex-grow: 1;
+            }
+        }
+
+        .nav-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateX(2px);
+        }
+
+        @media (max-width: 900px) {
+            .nav-btn:hover {
+                transform: translateY(-1px);
+            }
+        }
+
+        .nav-btn.active {
+            color: #fff;
+            background: var(--accent-soft);
+            border-color: rgba(255, 168, 94, 0.25);
+        }
+
+        /* Content Sections */
+        .tutorial-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .t-chapter {
+            display: none;
+            border: 1px solid var(--tutorial-line);
+            background: var(--tutorial-panel);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .t-chapter.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .t-chapter h2 {
+            margin-top: 0;
+            font-size: 1.8rem;
+            color: var(--tutorial-cool);
+            border-bottom: 1px solid var(--tutorial-line);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+        }
+
+        /* Guidelines & Best Practices tags */
+        .badge-26 {
+            background: var(--accent-soft);
+            color: var(--tutorial-accent);
+            border: 1px solid rgba(255, 168, 94, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 8px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .callout-box {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.005));
+            border-left: 4px solid var(--tutorial-cool);
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .callout-box.best-practice {
+            border-left-color: var(--tutorial-success);
+            background: linear-gradient(135deg, rgba(136, 224, 173, 0.04), rgba(255, 255, 255, 0.005));
+        }
+
+        .callout-box.anti-pattern {
+            border-left-color: var(--danger);
+            background: linear-gradient(135deg, rgba(255, 127, 127, 0.04), rgba(255, 255, 255, 0.005));
+        }
+
+        .callout-box strong {
+            display: block;
+            margin-bottom: 6px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+        }
+
+        /* Grid components */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 24px 0;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.035);
+        }
+
+        .info-card h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .info-card p {
+            margin: 0;
+            color: var(--tutorial-muted);
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        /* Diagrams style */
+        .visual-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 16px;
+            background: rgba(4, 9, 17, 0.5);
+            border: 1px solid var(--tutorial-line);
+            padding: 24px;
+            border-radius: 16px;
+            margin: 24px 0;
+        }
+
+        .diagram-step {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            width: 220px;
+            transition: all 0.25s ease;
+        }
+
+        .diagram-step:hover {
+            transform: scale(1.03);
+            border-color: var(--tutorial-cool);
+            background: rgba(100, 209, 196, 0.05);
+        }
+
+        .diagram-step h4 {
+            margin: 0 0 6px;
+            font-size: 1.05rem;
+            color: #ffffff;
+        }
+
+        .diagram-step span {
+            color: var(--tutorial-muted);
+            font-size: 0.8rem;
+            line-height: 1.4;
+            display: block;
+        }
+
+        .diagram-connector {
+            font-size: 1.5rem;
+            color: var(--tutorial-accent);
+            font-weight: 700;
+        }
+
+        /* Tables */
+        .spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        .spec-table th, .spec-table td {
+            text-align: left;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--tutorial-line);
+        }
+
+        .spec-table th {
+            font-family: 'Space Grotesk', sans-serif;
+            color: #ffffff;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .spec-table td code {
+            color: var(--tutorial-accent);
+            font-weight: 600;
+        }
+
+        .spec-table td span.req-tag {
+            color: #ff7f7f;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-left: 4px;
+        }
+
+        .spec-table td span.rec-tag {
+            color: var(--tutorial-cool);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-left: 4px;
+        }
+
+        /* Code box */
+        .code-block-wrapper {
+            position: relative;
+            margin: 18px 0;
+        }
+
+        .code-copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .code-copy-btn:hover {
+            background: var(--tutorial-cool);
+            color: #111;
+        }
+
+        pre {
+            background: rgba(4, 9, 17, 0.65) !important;
+            border: 1px solid var(--tutorial-line);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 0;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: var(--font-code);
+            font-size: 0.84rem;
+            color: #e0e8f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="tutorial-header">
+            <div>
+                <p class="eyebrow">Interactive Learning Guide</p>
+                <h1 style="margin: 4px 0 0; font-size: 2.2rem;">OpenRTB 2.6 Masterclass</h1>
+            </div>
+            <a href="/" class="back-nav">Back to Analyzer</a>
+        </header>
+
+        <main class="tutorial-container">
+            <!-- Sidebar Navigation -->
+            <nav class="tutorial-nav" aria-label="Tutorial Chapters">
+                <button class="nav-btn active" onclick="switchChapter('basics', this)">1. RTB Basics</button>
+                <button class="nav-btn" onclick="switchChapter('fields', this)">2. Core Schema & Fields</button>
+                <button class="nav-btn" onclick="switchChapter('pods', this)">3. CTV Ad Pods & Channels <span class="badge-26">2.6</span></button>
+                <button class="nav-btn" onclick="switchChapter('ua-privacy', this)">4. User Agent & Privacy <span class="badge-26">2.6</span></button>
+                <button class="nav-btn" onclick="switchChapter('counting', this)">5. Counting & No-Bids</button>
+                <button class="nav-btn" onclick="switchChapter('sandbox', this)">6. Interactive Sandbox</button>
+            </nav>
+
+            <!-- Content Area -->
+            <section class="tutorial-content" aria-live="polite">
+                
+                <!-- CHAPTER 1: RTB BASICS -->
+                <article class="t-chapter active" id="chapter-basics">
+                    <h2>1. The Basics of Real-Time Bidding</h2>
+                    <p style="font-size: 1.05rem; line-height: 1.6; color: #d9e6f4;">
+                        Real-Time Bidding (RTB) represents a sub-millisecond, automated programmatic auction where publisher ad space is traded on a per-impression basis while a page is loading.
+                    </p>
+
+                    <div class="callout-box">
+                        <strong>🚗 The Digital Billboard Analogy</strong>
+                        Think of a smart digital billboard on a highway. Every time a car passes, the billboard instantly scans key characteristics (speed, time of day, approximate direction) and decides what ad to show. Behind the scenes, multiple advertisers bid for that specific passing car. The highest bid wins and is displayed instantly.
+                    </div>
+
+                    <h3>The Programmatic Supply Chain</h3>
+                    <p>Programmatic advertising relies on three key transactional nodes to complete an auction:</p>
+                    <div class="visual-diagram">
+                        <div class="diagram-step">
+                            <h4>1. Publisher / App</h4>
+                            <span>Owns the digital inventory (e.g. news page, CTV app stream) and requests an ad.</span>
+                        </div>
+                        <div class="diagram-connector">➔</div>
+                        <div class="diagram-step">
+                            <h4>2. Ad Exchange / SSP</h4>
+                            <span>Conducts the auction, parses device context, broadcasts requests, and selects the winner.</span>
+                        </div>
+                        <div class="diagram-connector">➔</div>
+                        <div class="diagram-step">
+                            <h4>3. DSP / Bidder</h4>
+                            <span>Analyzes auction contexts on behalf of advertisers and submits competitive bids.</span>
+                        </div>
+                    </div>
+
+                    <h3>Transport & Protocols</h3>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h3>HTTP POST Transport</h3>
+                            <p>All bid requests are sent via HTTP POST to accommodate large structured payloads and potential binary serialization (Protobuf or Avro).</p>
+                        </div>
+                        <div class="info-card">
+                            <h3>Connection Persistence</h3>
+                            <p>Exchanges and bidders use Keep-Alive (Persistent Connections) to eliminate TCP handshake overhead and decrease latency.</p>
+                        </div>
+                        <div class="info-card">
+                            <h3>Compression (Gzip)</h3>
+                            <p>Payloads are compressed with gzip. Bidders signal gzip acceptance via the Accept-Encoding header and exchanges compress requests using Content-Encoding.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- CHAPTER 2: CORE SCHEMA -->
+                <article class="t-chapter" id="chapter-fields">
+                    <h2>2. Core Object Model & Fields</h2>
+                    <p>To avoid auction discrepancies, OpenRTB requires strict conformance to object models on both request and response payloads.</p>
+
+                    <h3>Key BidRequest Properties</h3>
+                    <table class="spec-table">
+                        <thead>
+                            <tr>
+                                <th>Field Path</th>
+                                <th>Type</th>
+                                <th>Description & Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>id</code></td>
+                                <td>string</td>
+                                <td>Unique identifier for this auction <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>imp</code></td>
+                                <td>array</td>
+                                <td>Array of impression opportunities (at least one) <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>imp[].id</code></td>
+                                <td>string</td>
+                                <td>Unique identifier for the impression slot <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>imp[].bidfloor</code></td>
+                                <td>float</td>
+                                <td>CPM minimum floor price in the declared currency <span class="rec-tag">Recommended</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>site</code></td>
+                                <td>object</td>
+                                <td>Content details for browser-based web inventory <span class="rec-tag">Recommended</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>app</code></td>
+                                <td>object</td>
+                                <td>Content details for mobile app or CTV inventory <span class="rec-tag">Recommended</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="callout-box anti-pattern">
+                        <strong>⚠️ Crucial Schema Anti-Pattern</strong>
+                        A single bid request must **never** contain both a <code>site</code> and an <code>app</code> object. If both are specified, the inventory context is ambiguous and the request will be flagged as invalid.
+                    </div>
+
+                    <h3>Key BidResponse Properties</h3>
+                    <table class="spec-table">
+                        <thead>
+                            <tr>
+                                <th>Field Path</th>
+                                <th>Type</th>
+                                <th>Description & Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>id</code></td>
+                                <td>string</td>
+                                <td>Must match the originating BidRequest ID <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>seatbid</code></td>
+                                <td>array</td>
+                                <td>Collection of seat bids (representing advertisers) <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>seatbid[].bid</code></td>
+                                <td>array</td>
+                                <td>Collection of actual bids for the placement slots <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>seatbid[].bid[].impid</code></td>
+                                <td>string</td>
+                                <td>Must map to the respective <code>imp.id</code> <span class="req-tag">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>seatbid[].bid[].price</code></td>
+                                <td>float</td>
+                                <td>Bidded CPM price in the declared currency <span class="req-tag">Required</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+
+                <!-- CHAPTER 3: CTV AD PODS -->
+                <article class="t-chapter" id="chapter-pods">
+                    <h2>3. CTV Ad Pods & Channels <span class="badge-26">OpenRTB 2.6</span></h2>
+                    <p style="font-size: 1.05rem; line-height: 1.6;">
+                        OpenRTB 2.6 introduces native support for **Ad Pods**, enabling linear TV-style ad breaks in video and audio streams.
+                    </p>
+
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h3>Structured Pods</h3>
+                            <p>The seller provides a fully static ad break. The number of slots, their sequence, and their durations are pre-defined (e.g. 4 slots of 30 seconds each).</p>
+                        </div>
+                        <div class="info-card">
+                            <h3>Dynamic Pods</h3>
+                            <p>The seller sets the total pod duration and maximum sequence limits, but allows the bidder to define individual creative durations (e.g., filling 120s with up to 4 ads of 15s or 30s).</p>
+                        </div>
+                        <div class="info-card">
+                            <h3>Hybrid Pods</h3>
+                            <p>A mix of static structured slots and flexible dynamic slots in the same ad break.</p>
+                        </div>
+                    </div>
+
+                    <h3>Pod-Specific Heuristics</h3>
+                    <ul>
+                        <li><strong>Mutual Exclusion of Duration:</strong> Sellers must include **either** <code>rqddurs</code> (exact acceptable durations) or the <code>minduration</code>/<code>maxduration</code> parameters, but never both.</li>
+                        <li><strong>CPM-per-Second Floor (<code>mincpmpersec</code>):</strong> Used in dynamic pods to prevent bidders from filling breaks with low-CPM, high-duration ads. Floor value scales relative to the creative duration.</li>
+                        <li><strong>Guaranteeing Slot Placement:</strong> Bidders should avoid supplying <code>slotinpod</code> in bid responses for structured pods, as the <code>impid</code> uniquely maps to the slot. <code>slotinpod</code> (e.g., 1=first, -1=last) should only be used to specify premium slot targeting in dynamic pods.</li>
+                    </ul>
+
+                    <h3>Network vs Channel Hierarchy</h3>
+                    <p>Differentiating content distribution layers is crucial in CTV context. 2.6 formalizes two objects:</p>
+                    <div class="callout-box best-practice">
+                        <strong>📺 Hierarchy Structure Example:</strong>
+                        If a user watches an HGTV show on the Discovery+ App:
+                        <ul>
+                            <li><strong>App (or Network)</strong>: Discovery+</li>
+                            <li><strong>Channel</strong>: HGTV</li>
+                        </ul>
+                    </div>
+                </article>
+
+                <!-- CHAPTER 4: USER AGENT & PRIVACY -->
+                <article class="t-chapter" id="chapter-ua-privacy">
+                    <h2>4. Structured User Agent & Privacy <span class="badge-26">OpenRTB 2.6</span></h2>
+                    <p style="font-size: 1.05rem; line-height: 1.6;">
+                        Modern browsers and platforms are freezing or deprecating the traditional User-Agent string. OpenRTB 2.6 introduces objects for reliable identity and privacy signals.
+                    </p>
+
+                    <h3>Structured User-Agent (<code>device.sua</code>)</h3>
+                    <p>Instead of relying on parsing complex user-agent strings, 2.6 standardizes the <code>device.sua</code> object:</p>
+                    <div class="code-block-wrapper">
+                        <button class="code-copy-btn" onclick="copySnippet('sua-snippet', this)">Copy</button>
+                        <pre><code id="sua-snippet">"sua": {
+  "browsers": [
+    { "brand": "Chrome", "version": ["100", "0", "4896", "127"] }
+  ],
+  "platform": { "brand": "Windows", "version": ["10", "0", "0"] },
+  "mobile": 0,
+  "architecture": "x86",
+  "model": "PC"
+}</code></pre>
+                    </div>
+
+                    <h3>Privacy & Regulations</h3>
+                    <p>OpenRTB supports multiple legal compliance frameworks. Flagged in the <code>regs</code> and <code>device</code> objects:</p>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <h3>COPPA (regs.coppa)</h3>
+                            <p>Child Online Privacy Protection Act. Set to <code>1</code> if the traffic is subject to child privacy rules.</p>
+                        </div>
+                        <div class="info-card">
+                            <h3>GDPR (regs.ext.gdpr)</h3>
+                            <p>General Data Protection Regulation. Flagged to signal European privacy applicability.</p>
+                        </div>
+                        <div class="info-card">
+                            <h3>GPP (regs.gpp / gpp_sid)</h3>
+                            <p>Global Privacy Platform. OpenRTB 2.6 recommends specifying **both** the gpp consent string and the gpp_sid section IDs array.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- CHAPTER 5: COUNTING & NO-BIDS -->
+                <article class="t-chapter" id="chapter-counting">
+                    <h2>5. Counting Methodologies & No-Bid Signaling</h2>
+                    <p>Accurately counting billable events is critical for programmatic accounting and discrepancy resolution.</p>
+
+                    <h3>MRC-Aligned Impression Counting</h3>
+                    <table class="spec-table">
+                        <thead>
+                            <tr>
+                                <th>Methodology</th>
+                                <th>Application</th>
+                                <th>Best Practices & Limitations</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Pixel in Markup</strong></td>
+                                <td>Display Ads (Web)</td>
+                                <td>Original web standard. Overcounts on mobile apps since creatives are pre-fetched before display.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>VAST &lt;Impression&gt;</strong></td>
+                                <td>Video & Audio</td>
+                                <td>Fired from the client player upon creative play start. Required for all video/audio streams.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Billing Notice (<code>burl</code>)</strong></td>
+                                <td>All formats (except Video)</td>
+                                <td>DSP-supplied URL. Fired by the exchange server-to-server as close to the billing event as possible.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Win Notice (<code>nurl</code>)</strong></td>
+                                <td>Troubleshooting only</td>
+                                <td>Signals auction win only. **Should never be used for billing** because won ads are often not rendered.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="callout-box best-practice">
+                        <strong>🔒 Server-Side Firing Best Practices</strong>
+                        When firing billing notifications (<code>burl</code>) from servers:
+                        <ul>
+                            <li>Include the <code>X-Forwarded-For</code> header indicating the end-user device IP.</li>
+                            <li>Include the <code>X-Device-User-Agent</code> header indicating the end-user browser agent.</li>
+                            <li>Sign requests cryptographically via <strong>ads.cert</strong> to prevent billing fraud.</li>
+                        </ul>
+                    </div>
+
+                    <h3>No-Bid Responses</h3>
+                    <p>Bidders can decline to bid in four different ways. OpenRTB 2.6 formalizes the use of No-Bid Reasons (<code>nbr</code>):</p>
+                    <ol>
+                        <li><strong>HTTP 204 "No Content":</strong> Most efficient, saves bandwidth.</li>
+                        <li><strong>Empty JSON:</strong> Returning <code>{}</code>.</li>
+                        <li><strong>Empty SeatBid:</strong> Returning <code>{"id": "req-1", "seatbid": []}</code>.</li>
+                        <li><strong>Explicit No-Bid:</strong> Returning <code>{"id": "req-1", "seatbid": [], "nbr": 2}</code> (where 2 = Invalid Request, 4 = Suspected NHT).</li>
+                    </ol>
+                </article>
+
+                <!-- CHAPTER 6: SANDBOX -->
+                <article class="t-chapter" id="chapter-sandbox">
+                    <h2>6. Interactive Sandbox</h2>
+                    <p>Practice programmatic auditing by loading these compliant OpenRTB payloads into your analyzer workspace.</p>
+
+                    <div class="step-card">
+                        <span class="step-num">1</span>
+                        <div class="step-content">
+                            <h4>Load the Request Payload</h4>
+                            <p>Copy the JSON block below and paste it into the **Bid Request** input panel in the analyzer workspace.</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block-wrapper">
+                        <button class="code-copy-btn" onclick="copySnippet('sandbox-req', this)">Copy</button>
+                        <pre><code id="sandbox-req">{
+  "id": "ctv-pod-auction-88",
+  "imp": [
+    {
+      "id": "imp-1",
+      "bidfloor": 4.50,
+      "bidfloorcur": "USD",
+      "video": {
+        "mimes": ["video/mp4"],
+        "rqddurs": [15, 30],
+        "podid": "ctv_midroll_pod",
+        "podseq": 2,
+        "slotinpod": 1
+      }
+    }
+  ],
+  "app": {
+    "id": "app-890",
+    "name": "Pluto TV",
+    "bundle": "com.plutotv"
+  },
+  "device": {
+    "devicetype": 3,
+    "sua": {
+      "browsers": [
+        { "brand": "Chrome", "version": ["100"] }
+      ],
+      "platform": { "brand": "Roku OS" },
+      "mobile": 0
+    }
+  }
+}</code></pre>
+                    </div>
+
+                    <div class="step-card" style="margin-top: 24px;">
+                        <span class="step-num">2</span>
+                        <div class="step-content">
+                            <h4>Load the Response Payload</h4>
+                            <p>Copy the JSON block below and paste it into the **Bid Response** input panel in the analyzer workspace.</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block-wrapper">
+                        <button class="code-copy-btn" onclick="copySnippet('sandbox-resp', this)">Copy</button>
+                        <pre><code id="sandbox-resp">{
+  "id": "ctv-pod-auction-88",
+  "cur": "USD",
+  "seatbid": [
+    {
+      "seat": "buyer-seat-100",
+      "bid": [
+        {
+          "id": "bid-c1",
+          "impid": "imp-1",
+          "price": 6.20,
+          "dur": 30,
+          "podid": "ctv_midroll_pod",
+          "slotinpod": 1,
+          "adomain": ["auto-brand.com"],
+          "adm": "&lt;VAST version=\"4.2\"&gt;&lt;Ad&gt;&lt;InLine&gt;&lt;Impression&gt;http://tracker.com/imp&lt;/Impression&gt;&lt;/InLine&gt;&lt;/Ad&gt;&lt;/VAST&gt;"
+        }
+      ]
+    }
+  ]
+}</code></pre>
+                    </div>
+
+                    <div class="step-card" style="margin-top: 24px;">
+                        <span class="step-num">3</span>
+                        <div class="step-content">
+                            <h4>Click "Analyze"</h4>
+                            <p>Observe the floor verification, exact duration matching (30s matches the requested duration list), and CTV classification scores.</p>
+                        </div>
+                    </div>
+                </article>
+
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function switchChapter(chapterId, button) {
+            // Update active state of buttons
+            document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("active"));
+            button.classList.add("active");
+
+            // Update active state of chapters
+            document.querySelectorAll(".t-chapter").forEach(ch => ch.classList.remove("active"));
+            document.getElementById("chapter-" + chapterId).classList.add("active");
+            
+            // Scroll back to top of content for clean layout
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function copySnippet(elementId, button) {
+            const code = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = "Copied!";
+                button.style.background = "var(--tutorial-success)";
+                button.style.color = "#111";
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = "";
+                    button.style.color = "";
+                }, 2000);
+            }).catch(err => {
+                alert("Failed to copy code: " + err);
+            });
+        }
+    </script>
+</body>
+</html>

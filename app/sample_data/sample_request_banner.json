@@ -1,0 +1,51 @@
+{
+  "id": "req-banner-010",
+  "at": 2,
+  "tmax": 80,
+  "cur": ["USD"],
+  "site": {
+    "id": "site-news-2",
+    "name": "Daily Journal",
+    "domain": "news.example.com",
+    "page": "https://news.example.com/story/economy",
+    "cat": ["IAB12"],
+    "publisher": {
+      "id": "pub-news",
+      "name": "Daily Journal Media"
+    }
+  },
+  "device": {
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "ip": "198.51.100.34",
+    "devicetype": 2,
+    "os": "Windows",
+    "osv": "11",
+    "h": 1080,
+    "w": 1440,
+    "language": "en",
+    "connectiontype": 2,
+    "geo": {
+      "country": "USA",
+      "region": "NY",
+      "city": "New York"
+    }
+  },
+  "imp": [
+    {
+      "id": "imp-banner-1",
+      "tagid": "top-leaderboard",
+      "bidfloor": 1.2,
+      "banner": {
+        "w": 728,
+        "h": 90,
+        "pos": 1,
+        "format": [
+          { "w": 728, "h": 90 },
+          { "w": 970, "h": 90 }
+        ],
+        "api": [3, 5],
+        "topframe": 1
+      }
+    }
+  ]
+}

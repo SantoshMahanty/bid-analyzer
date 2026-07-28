@@ -1,0 +1,117 @@
+{
+  "id": "req-ctv-001",
+  "test": 0,
+  "at": 1,
+  "tmax": 120,
+  "cur": ["USD"],
+  "source": {
+    "fd": 1,
+    "tid": "txn-ctv-44",
+    "schain": {
+      "ver": "1.0",
+      "complete": 1,
+      "nodes": [
+        {
+          "asi": "ssp.example",
+          "sid": "pub-ctv",
+          "hp": 1
+        }
+      ]
+    }
+  },
+  "app": {
+    "id": "app-ctv-01",
+    "name": "Living Room TV",
+    "bundle": "com.livingroomtv.app",
+    "storeurl": "https://channelstore.roku.com/details/living-room-tv",
+    "cat": ["IAB1-6"],
+    "publisher": {
+      "id": "pub-55",
+      "name": "Living Room Media"
+    },
+    "content": {
+      "id": "content-900",
+      "title": "Sports Center Live",
+      "livestream": 1
+    }
+  },
+  "device": {
+    "ua": "Roku/DVP-12.0 (12.0.0 build 4184-46)",
+    "ip": "203.0.113.55",
+    "devicetype": 3,
+    "make": "Roku",
+    "model": "Ultra",
+    "os": "Roku OS",
+    "osv": "12.0",
+    "h": 1080,
+    "w": 1920,
+    "connectiontype": 2,
+    "language": "en",
+    "lmt": 0,
+    "geo": {
+      "country": "USA",
+      "region": "CA",
+      "city": "San Francisco",
+      "utcoffset": -420
+    }
+  },
+  "user": {
+    "id": "user-ctv-11",
+    "buyeruid": "buyer-998"
+  },
+  "regs": {
+    "coppa": 0,
+    "ext": {
+      "gdpr": 0,
+      "gpp": "DBABMA~CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA",
+      "gpp_sid": [7]
+    }
+  },
+  "imp": [
+    {
+      "id": "imp-ctv-1",
+      "tagid": "preroll-slot-1",
+      "secure": 1,
+      "bidfloor": 18.5,
+      "bidfloorcur": "USD",
+      "video": {
+        "mimes": ["video/mp4"],
+        "minduration": 15,
+        "maxduration": 30,
+        "protocols": [2, 3, 5, 6],
+        "w": 1920,
+        "h": 1080,
+        "placement": 1,
+        "plcmt": 1,
+        "linearity": 1,
+        "skip": 0,
+        "playbackmethod": [1],
+        "api": [7],
+        "poddur": 120,
+        "podid": "pod-a",
+        "podseq": 1,
+        "slotinpod": 1,
+        "mincpmpersec": 0.35,
+        "durfloors": [
+          {
+            "mindur": 15,
+            "maxdur": 30,
+            "bidfloor": 18.5
+          }
+        ]
+      },
+      "pmp": {
+        "private_auction": 0,
+        "deals": [
+          {
+            "id": "deal-ctv-77",
+            "bidfloor": 22,
+            "bidfloorcur": "USD",
+            "wseat": ["seat-alpha"],
+            "at": 1
+          }
+        ]
+      }
+    }
+  ]
+}

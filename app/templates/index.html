@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid Analyzer</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="app-header">
+            <div class="app-title">
+                <p class="eyebrow">OpenRTB Request/Response Analyzer</p>
+                <h1>Bid Analyzer</h1>
+                <p class="header-text">
+                    Paste, upload, or fetch payloads and inspect them as structured OpenRTB traffic.
+                </p>
+            </div>
+            <div class="header-meta" style="align-items: center;">
+                <a href="/tutorial" class="primary-button" style="text-decoration: none; color: #111; display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 999px; font-weight: 700; font-size: 0.8rem; margin-right: 8px;">OpenRTB Tutorial</a>
+                <span class="meta-pill">Input: raw text, file, URL</span>
+                <span class="meta-pill">Output: validation, comparison, plain-English explanations</span>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <section class="input-column">
+                <div class="section-heading">
+                    <div>
+                        <p class="panel-kicker">Input Workspace</p>
+                        <h2>Request and response</h2>
+                    </div>
+                    <p class="section-copy">Keep one side empty if you only want single-payload analysis.</p>
+                </div>
+
+                <section class="workflow-strip">
+                    <div class="workflow-step">
+                        <span class="step-index">1</span>
+                        <div>
+                            <strong>Load input</strong>
+                            <p>Paste JSON, upload a file, or fetch from a public URL.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <span class="step-index">2</span>
+                        <div>
+                            <strong>Run analysis</strong>
+                            <p>Validate structure, classify traffic, and compare request to response.</p>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <span class="step-index">3</span>
+                        <div>
+                            <strong>Inspect output</strong>
+                            <p>Review warnings, raw fields, interview notes, and exportable reports.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="input-stack">
+                    <article class="panel input-panel">
+                        <div class="panel-heading">
+                            <div>
+                                <p class="panel-kicker">Input A</p>
+                                <h3>Bid Request</h3>
+                            </div>
+                            <span class="source-pill" id="request-source-pill">Idle</span>
+                        </div>
+                        <div class="panel-helper">
+                            <span class="mini-pill">Accepts object or array JSON</span>
+                            <span class="mini-pill">Best for request payloads with `imp`</span>
+                        </div>
+
+                        <label class="field-label" for="request-sample">Sample file</label>
+                        <div class="sample-row">
+                            <select id="request-sample" class="text-input">
+                                <option value="">Choose a request sample</option>
+                            </select>
+                            <button type="button" class="ghost-button" data-load-sample="request">Use</button>
+                        </div>
+
+                        <label class="field-label" for="request-raw">Raw JSON or body</label>
+                        <textarea id="request-raw" class="code-input" placeholder='{"id":"req-1","imp":[...]}'></textarea>
+
+                        <div class="compact-grid">
+                            <div>
+                                <label class="field-label" for="request-url">Public URL</label>
+                                <input id="request-url" class="text-input" type="url" placeholder="https://example.com/request.json">
+                            </div>
+                            <div>
+                                <label class="field-label" for="request-file">Upload file</label>
+                                <input id="request-file" class="file-input" type="file" accept=".json,.txt,.gz,.log">
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="panel input-panel">
+                        <div class="panel-heading">
+                            <div>
+                                <p class="panel-kicker">Input B</p>
+                                <h3>Bid Response</h3>
+                            </div>
+                            <span class="source-pill" id="response-source-pill">Idle</span>
+                        </div>
+                        <div class="panel-helper">
+                            <span class="mini-pill">Accepts seatbid, nbr, or full response JSON</span>
+                            <span class="mini-pill">Best for bid responses and no-bid payloads</span>
+                        </div>
+
+                        <label class="field-label" for="response-sample">Sample file</label>
+                        <div class="sample-row">
+                            <select id="response-sample" class="text-input">
+                                <option value="">Choose a response sample</option>
+                            </select>
+                            <button type="button" class="ghost-button" data-load-sample="response">Use</button>
+                        </div>
+
+                        <label class="field-label" for="response-raw">Raw JSON or body</label>
+                        <textarea id="response-raw" class="code-input" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
+
+                        <div class="compact-grid">
+                            <div>
+                                <label class="field-label" for="response-url">Public URL</label>
+                                <input id="response-url" class="text-input" type="url" placeholder="https://example.com/response.json">
+                            </div>
+                            <div>
+                                <label class="field-label" for="response-file">Upload file</label>
+                                <input id="response-file" class="file-input" type="file" accept=".json,.txt,.gz,.log">
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="panel toolbar-panel">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <button id="analyze-btn" class="primary-button" type="button">Analyze</button>
+                            <button id="load-default-btn" class="secondary-button" type="button">Load Sample Data</button>
+                            <button id="clear-btn" class="ghost-button" type="button">Clear</button>
+                        </div>
+                        <div class="toolbar-right">
+                            <button id="copy-report-btn" class="ghost-button" type="button" disabled>Copy</button>
+                            <button id="export-html-btn" class="ghost-button" type="button" disabled>HTML</button>
+                            <button id="export-json-btn" class="ghost-button" type="button" disabled>JSON</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="status-banner" class="status-banner hidden"></section>
+            </section>
+
+            <section class="output-column">
+                <div class="section-heading">
+                    <div>
+                        <p class="panel-kicker">Output Workspace</p>
+                        <h2>Analysis report</h2>
+                    </div>
+                    <p class="section-copy">Compact tabs for summary, validation, comparison, and raw inspection.</p>
+                </div>
+
+                <section id="results-placeholder" class="results-placeholder">
+                    <div class="placeholder-copy">
+                        <h3>Results appear here</h3>
+                        <p>Run analysis to populate the report with field extraction, protocol interpretation, validation, and request-vs-response checks.</p>
+                    </div>
+                    <div class="placeholder-grid">
+                        <div class="placeholder-block">
+                            <h4>Request-side output</h4>
+                            <p>Inventory source, format, environment, auction model, privacy, floors, and field-level warnings.</p>
+                        </div>
+                        <div class="placeholder-block">
+                            <h4>Response-side output</h4>
+                            <p>Seat and bid counts, creative completeness, deal references, no-bid interpretation, and metadata quality.</p>
+                        </div>
+                        <div class="placeholder-block">
+                            <h4>Comparison output</h4>
+                            <p>ID mapping, floor compliance, currency consistency, dimension checks, pod references, and mismatch flags.</p>
+                        </div>
+                        <div class="placeholder-block">
+                            <h4>Readable output</h4>
+                            <p>Human explanation, interview bullets, raw parsed JSON, copy-to-clipboard, and export actions.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="results" class="results hidden">
+                    <div class="results-topbar">
+                        <div>
+                            <p class="panel-kicker">Analysis Results</p>
+                            <h2>Protocol-aware report</h2>
+                        </div>
+                        <div id="overall-status" class="status-chip neutral">Ready</div>
+                    </div>
+                    <div id="results-snapshot" class="results-snapshot"></div>
+
+                    <div class="tab-strip" id="tab-strip">
+                        <button class="tab-button active" data-tab="overview">Overview</button>
+                        <button class="tab-button" data-tab="request-summary">Request</button>
+                        <button class="tab-button" data-tab="response-summary">Response</button>
+                        <button class="tab-button" data-tab="type-detection">Type</button>
+                        <button class="tab-button" data-tab="comparison">Compare</button>
+                        <button class="tab-button" data-tab="human">Explain</button>
+                        <button class="tab-button" data-tab="interpretation">Signals</button>
+                        <button class="tab-button" data-tab="warnings">Warnings</button>
+                        <button class="tab-button" data-tab="raw">Raw</button>
+                        <button class="tab-button" data-tab="interview">Interview</button>
+                    </div>
+
+                    <div class="tab-panel active" id="tab-overview"></div>
+                    <div class="tab-panel" id="tab-request-summary"></div>
+                    <div class="tab-panel" id="tab-response-summary"></div>
+                    <div class="tab-panel" id="tab-type-detection"></div>
+                    <div class="tab-panel" id="tab-comparison"></div>
+                    <div class="tab-panel" id="tab-human"></div>
+                    <div class="tab-panel" id="tab-interpretation"></div>
+                    <div class="tab-panel" id="tab-warnings"></div>
+                    <div class="tab-panel" id="tab-raw"></div>
+                    <div class="tab-panel" id="tab-interview"></div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

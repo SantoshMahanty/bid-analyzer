@@ -1,0 +1,37 @@
+{
+  "id": "req-native-42",
+  "at": 1,
+  "tmax": 90,
+  "cur": ["USD"],
+  "site": {
+    "id": "site-native-1",
+    "name": "Culture Weekly",
+    "domain": "culture.example",
+    "page": "https://culture.example/features/design",
+    "mobile": 1
+  },
+  "device": {
+    "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    "devicetype": 4,
+    "os": "iOS",
+    "osv": "17.0",
+    "language": "en",
+    "geo": {
+      "country": "USA",
+      "region": "WA",
+      "city": "Seattle"
+    }
+  },
+  "imp": [
+    {
+      "id": "imp-native-1",
+      "bidfloor": 4.25,
+      "native": {
+        "ver": "1.2",
+        "request": "{\"assets\":[{\"id\":1,\"required\":1,\"title\":{\"len\":80}},{\"id\":2,\"img\":{\"type\":3,\"wmin\":1200,\"hmin\":627}}]}",
+        "api": [3],
+        "battr": [1, 3]
+      }
+    }
+  ]
+}

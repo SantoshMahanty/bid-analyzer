@@ -1,0 +1,47 @@
+{
+  "id": "req-audio-500",
+  "at": 1,
+  "tmax": 100,
+  "cur": ["USD"],
+  "app": {
+    "id": "app-audio-22",
+    "name": "Morning Podcasts",
+    "bundle": "fm.audio.podcasts",
+    "publisher": {
+      "id": "pub-audio",
+      "name": "Audio One"
+    }
+  },
+  "device": {
+    "ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8)",
+    "ifa": "38400000-8cf0-11bd-b23e-10b96e40000d",
+    "devicetype": 4,
+    "os": "Android",
+    "osv": "14",
+    "connectiontype": 2,
+    "geo": {
+      "country": "USA",
+      "region": "TX",
+      "city": "Austin"
+    }
+  },
+  "imp": [
+    {
+      "id": "imp-audio-1",
+      "bidfloor": 6.5,
+      "audio": {
+        "mimes": ["audio/mpeg"],
+        "minduration": 15,
+        "maxduration": 30,
+        "protocols": [2, 3],
+        "startdelay": 0,
+        "delivery": [2],
+        "api": [7],
+        "maxseq": 1,
+        "feed": 1,
+        "stitched": 1,
+        "nvol": 2
+      }
+    }
+  ]
+}

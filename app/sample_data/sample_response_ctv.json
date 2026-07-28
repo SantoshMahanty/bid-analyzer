@@ -1,0 +1,31 @@
+{
+  "id": "req-ctv-001",
+  "bidid": "resp-bid-901",
+  "cur": "USD",
+  "seatbid": [
+    {
+      "seat": "seat-alpha",
+      "group": 0,
+      "bid": [
+        {
+          "id": "bid-1001",
+          "impid": "imp-ctv-1",
+          "price": 24.25,
+          "adid": "ad-ctv-9",
+          "adm": "<VAST version=\"3.0\"></VAST>",
+          "adomain": ["brand.example"],
+          "cid": "campaign-70",
+          "crid": "creative-33",
+          "dealid": "deal-ctv-77",
+          "w": 1920,
+          "h": 1080,
+          "dur": 30,
+          "mtype": 2,
+          "podid": "pod-a",
+          "slotinpod": 1,
+          "seat": "seat-alpha"
+        }
+      ]
+    }
+  ]
+}
