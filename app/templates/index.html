@@ -7,12 +7,21 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Animated Background -->
+    <div class="animated-bg"></div>
+
+    <div class="app">
         <!-- Header -->
         <header class="header">
-            <div class="header-inner">
-                <h1>📊 Bid Analyzer</h1>
-                <p>OpenRTB Request & Response Inspector</p>
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">📊</span>
+                    <div>
+                        <h1>Bid Analyzer</h1>
+                        <p>OpenRTB Inspector</p>
+                    </div>
+                </div>
+                <a href="/tutorial" class="header-link">📖 Tutorial</a>
             </div>
         </header>
 
@@ -20,114 +29,156 @@
         <main class="main">
             <!-- Mode Selector -->
             <div class="mode-selector">
-                <label for="mode-select">Select Analysis:</label>
-                <select id="mode-select">
-                    <option value="request">📋 Bid Request Analyzer</option>
-                    <option value="response">📨 Bid Response Analyzer</option>
-                    <option value="compare">⚖️ Compare Request & Response</option>
-                </select>
+                <div class="selector-label">Choose Your Mode</div>
+                <div class="selector-options">
+                    <button class="mode-option active" data-mode="request">
+                        <span class="mode-icon">🔍</span>
+                        <div>
+                            <div class="mode-name">Request</div>
+                            <div class="mode-desc">Analyze bid request</div>
+                        </div>
+                    </button>
+                    <button class="mode-option" data-mode="response">
+                        <span class="mode-icon">📨</span>
+                        <div>
+                            <div class="mode-name">Response</div>
+                            <div class="mode-desc">Analyze bid response</div>
+                        </div>
+                    </button>
+                    <button class="mode-option" data-mode="compare">
+                        <span class="mode-icon">⚖️</span>
+                        <div>
+                            <div class="mode-name">Compare</div>
+                            <div class="mode-desc">Request vs Response</div>
+                        </div>
+                    </button>
+                </div>
             </div>
 
-            <div class="content-grid">
-                <!-- Input Panel -->
-                <div class="input-panel">
-                    <h2>Input</h2>
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Input Section -->
+                <div class="section input-section">
+                    <div class="section-header">
+                        <h2>📤 Input Data</h2>
+                    </div>
 
                     <!-- Request Mode -->
-                    <div class="mode-content" id="input-request">
-                        <div class="input-group">
-                            <label>Paste JSON:</label>
-                            <textarea id="request-raw" placeholder='{"id":"req-1","imp":[...]}'></textarea>
+                    <div class="mode-content active" id="input-request">
+                        <div class="input-container">
+                            <label class="input-label">Bid Request JSON</label>
+                            <textarea id="request-raw" class="code-input" placeholder='{"id":"req-1","imp":[{"id":"1","video":{"w":1920,"h":1080},"bidfloor":18.5}]}'></textarea>
                         </div>
 
-                        <div class="button-group">
-                            <button class="btn-secondary" onclick="document.getElementById('request-file').click()">📁 Upload File</button>
+                        <div class="action-row">
+                            <button class="btn btn-secondary" onclick="document.getElementById('request-file').click()">
+                                📁 Upload File
+                            </button>
                             <select id="request-sample" class="select-input">
-                                <option value="">Choose Sample...</option>
+                                <option value="">📋 Sample...</option>
                             </select>
-                            <button class="btn-secondary" onclick="loadSample('request')">Load</button>
+                            <button class="btn btn-secondary" onclick="loadSample('request')">Load</button>
                             <input id="request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                         </div>
                     </div>
 
                     <!-- Response Mode -->
                     <div class="mode-content" id="input-response" style="display:none;">
-                        <div class="input-group">
-                            <label>Paste JSON:</label>
-                            <textarea id="response-raw" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
+                        <div class="input-container">
+                            <label class="input-label">Bid Response JSON</label>
+                            <textarea id="response-raw" class="code-input" placeholder='{"id":"req-1","seatbid":[{"seat":"dsp","bid":[{"id":"bid-1","impid":"1","price":24.25,"adid":"ad-123"}]}]}'></textarea>
                         </div>
 
-                        <div class="button-group">
-                            <button class="btn-secondary" onclick="document.getElementById('response-file').click()">📁 Upload File</button>
+                        <div class="action-row">
+                            <button class="btn btn-secondary" onclick="document.getElementById('response-file').click()">
+                                📁 Upload File
+                            </button>
                             <select id="response-sample" class="select-input">
-                                <option value="">Choose Sample...</option>
+                                <option value="">📋 Sample...</option>
                             </select>
-                            <button class="btn-secondary" onclick="loadSample('response')">Load</button>
+                            <button class="btn btn-secondary" onclick="loadSample('response')">Load</button>
                             <input id="response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                         </div>
                     </div>
 
                     <!-- Compare Mode -->
                     <div class="mode-content" id="input-compare" style="display:none;">
-                        <div class="compare-inputs">
-                            <div class="compare-input">
-                                <h3>Bid Request</h3>
-                                <textarea id="compare-request-raw" placeholder='{"id":"req-1","imp":[...]}'></textarea>
-                                <button class="btn-secondary" onclick="document.getElementById('compare-request-file').click()">📁 Upload</button>
+                        <div class="compare-grid">
+                            <div class="compare-card">
+                                <h3>📋 Request</h3>
+                                <textarea id="compare-request-raw" class="code-input" placeholder='Request JSON...'></textarea>
+                                <button class="btn btn-secondary" onclick="document.getElementById('compare-request-file').click()">
+                                    📁 Upload
+                                </button>
                                 <input id="compare-request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
-                            <div class="compare-input">
-                                <h3>Bid Response</h3>
-                                <textarea id="compare-response-raw" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
-                                <button class="btn-secondary" onclick="document.getElementById('compare-response-file').click()">📁 Upload</button>
+                            <div class="compare-card">
+                                <h3>📨 Response</h3>
+                                <textarea id="compare-response-raw" class="code-input" placeholder='Response JSON...'></textarea>
+                                <button class="btn btn-secondary" onclick="document.getElementById('compare-response-file').click()">
+                                    📁 Upload
+                                </button>
                                 <input id="compare-response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="action-buttons">
-                        <button id="analyze-btn" class="btn-primary">▶ Analyze</button>
-                        <button class="btn-secondary" onclick="clearInputs()">Clear</button>
+                    <!-- Main Action Buttons -->
+                    <div class="button-group">
+                        <button id="analyze-btn" class="btn btn-primary btn-large">
+                            ▶️ Analyze Now
+                        </button>
+                        <button class="btn btn-ghost" onclick="clearInputs()">
+                            ✕ Clear
+                        </button>
                     </div>
                 </div>
 
-                <!-- Results Panel -->
-                <div class="results-panel">
-                    <h2>Results</h2>
-                    <div id="results-placeholder" class="placeholder">
-                        <p>✨ Upload or paste data and click Analyze</p>
+                <!-- Results Section -->
+                <div class="section results-section">
+                    <div class="section-header">
+                        <h2>📊 Results</h2>
                     </div>
-                    <div id="results-content" style="display:none;">
+
+                    <!-- Placeholder -->
+                    <div id="results-placeholder" class="results-placeholder">
+                        <div class="placeholder-icon">✨</div>
+                        <p>Paste or upload data above and click Analyze</p>
+                    </div>
+
+                    <!-- Results Content -->
+                    <div id="results-content" class="results-content" style="display:none;">
                         <div class="results-tabs">
-                            <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
-                            <button class="tab-btn" onclick="switchTab('request', this)">Request</button>
-                            <button class="tab-btn" onclick="switchTab('response', this)">Response</button>
-                            <button class="tab-btn" onclick="switchTab('compare', this)">Compare</button>
-                            <button class="tab-btn" onclick="switchTab('warnings', this)">Warnings</button>
-                            <button class="tab-btn" onclick="switchTab('raw', this)">Raw</button>
+                            <button class="tab-button active" onclick="switchTab('overview', this)">Overview</button>
+                            <button class="tab-button" onclick="switchTab('request', this)">Request</button>
+                            <button class="tab-button" onclick="switchTab('response', this)">Response</button>
+                            <button class="tab-button" onclick="switchTab('compare', this)">Compare</button>
+                            <button class="tab-button" onclick="switchTab('warnings', this)">⚠️ Warnings</button>
+                            <button class="tab-button" onclick="switchTab('raw', this)">Raw</button>
                         </div>
-                        <div class="tab-contents">
-                            <div class="tab-content active" id="tab-overview"></div>
-                            <div class="tab-content" id="tab-request"></div>
-                            <div class="tab-content" id="tab-response"></div>
-                            <div class="tab-content" id="tab-compare"></div>
-                            <div class="tab-content" id="tab-warnings"></div>
-                            <div class="tab-content" id="tab-raw"></div>
+
+                        <div class="tab-panels">
+                            <div class="tab-panel active" id="tab-overview"></div>
+                            <div class="tab-panel" id="tab-request"></div>
+                            <div class="tab-panel" id="tab-response"></div>
+                            <div class="tab-panel" id="tab-compare"></div>
+                            <div class="tab-panel" id="tab-warnings"></div>
+                            <div class="tab-panel" id="tab-raw"></div>
                         </div>
-                        <div class="export-buttons">
-                            <button class="btn-secondary" onclick="copyResults()">📋 Copy</button>
-                            <button class="btn-secondary" onclick="exportJSON()">📄 JSON</button>
-                            <button class="btn-secondary" onclick="exportHTML()">💾 HTML</button>
+
+                        <div class="export-group">
+                            <button class="btn btn-secondary" onclick="copyResults()">📋 Copy</button>
+                            <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
+                            <button class="btn btn-secondary" onclick="exportHTML()">💾 HTML</button>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
-
-        <!-- Status Message -->
-        <div id="status-msg" class="status-msg"></div>
     </div>
+
+    <!-- Status Notification -->
+    <div id="status-notification" class="status-notification"></div>
 
     <script src="/static/app.js"></script>
 </body>

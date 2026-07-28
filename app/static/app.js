@@ -11,8 +11,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 /* Events */
 function bindEvents() {
-    document.getElementById("mode-select").addEventListener("change", (e) => {
-        switchMode(e.target.value);
+    // Mode option buttons
+    document.querySelectorAll(".mode-option").forEach(btn => {
+        btn.addEventListener("click", () => {
+            switchMode(btn.dataset.mode);
+        });
     });
 
     document.getElementById("analyze-btn").addEventListener("click", analyzeAll);
@@ -35,6 +38,13 @@ function bindEvents() {
 function switchMode(mode) {
     state.currentMode = mode;
 
+    // Update button states
+    document.querySelectorAll(".mode-option").forEach(btn => {
+        btn.classList.remove("active");
+    });
+    document.querySelector(`[data-mode="${mode}"]`).classList.add("active");
+
+    // Update content visibility
     document.querySelectorAll(".mode-content").forEach(el => el.style.display = "none");
     document.getElementById(`input-${mode}`).style.display = "block";
 
