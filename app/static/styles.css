@@ -256,12 +256,12 @@ html, body {
 }
 
 .input-method-content {
-    display: none;
+    display: none !important;
     animation: fadeIn 0.3s;
 }
 
 .input-method-content.active {
-    display: block;
+    display: block !important;
 }
 
 /* Input Section */

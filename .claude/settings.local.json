@@ -20,7 +20,9 @@
       "Bash(git commit -m 'Complete UI redesign with modern, beautiful interface *)",
       "Bash(git commit -m 'Fix UI initialization - show only request panel on load *)",
       "Bash(git commit -m 'Simplify UI with clean, reliable design *)",
-      "Bash(git commit -m 'Modern UI redesign with sleek, trendy design *)"
+      "Bash(git commit -m 'Modern UI redesign with sleek, trendy design *)",
+      "Bash(grep -v \"//\")",
+      "Bash(git commit -m 'Phase 2 bugfix: Tab switching CSS and JavaScript initialization *)"
     ]
   }
 }

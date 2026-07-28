@@ -464,6 +464,17 @@ function setupDragDrop() {
 
 /* Phase 2: Input Method Tabs */
 function setupInputMethodTabs() {
+    // Initialize: hide all non-active content with a small delay
+    setTimeout(() => {
+        document.querySelectorAll(".input-method-content").forEach(el => {
+            if (el.classList.contains("active")) {
+                el.style.cssText = "display: block !important;";
+            } else {
+                el.style.cssText = "display: none !important;";
+            }
+        });
+    }, 0);
+
     document.querySelectorAll(".input-method-tab").forEach(tab => {
         tab.addEventListener("click", () => {
             const mode = tab.dataset.mode;
@@ -476,11 +487,17 @@ function setupInputMethodTabs() {
             tab.classList.add("active");
 
             // Update visible content
-            document.querySelectorAll(`#method-*-${mode}`).forEach(el => {
-                el.classList.remove("active");
+            document.querySelectorAll(`.input-method-content`).forEach(el => {
+                if (el.id.endsWith(`-${mode}`)) {
+                    el.classList.remove("active");
+                    el.style.display = "none";
+                }
             });
             const content = document.getElementById(`method-${method}-${mode}`);
-            if (content) content.classList.add("active");
+            if (content) {
+                content.classList.add("active");
+                content.style.display = "block";
+            }
         });
     });
 
