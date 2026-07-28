@@ -18,7 +18,8 @@
       "Bash(git commit -m 'Fix FastAPI/Starlette compatibility and add server launch config *)",
       "Bash(git commit -m 'Refactor UI with 3-mode dropdown selector *)",
       "Bash(git commit -m 'Complete UI redesign with modern, beautiful interface *)",
-      "Bash(git commit -m 'Fix UI initialization - show only request panel on load *)"
+      "Bash(git commit -m 'Fix UI initialization - show only request panel on load *)",
+      "Bash(git commit -m 'Simplify UI with clean, reliable design *)"
     ]
   }
 }

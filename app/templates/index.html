@@ -7,255 +7,126 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="app-container">
+    <div class="container">
         <!-- Header -->
-        <header class="app-header">
-            <div class="header-content">
-                <div class="logo-section">
-                    <div class="logo-icon">📊</div>
-                    <div>
-                        <h1 class="app-title">Bid Analyzer</h1>
-                        <p class="app-subtitle">OpenRTB Traffic Inspector</p>
-                    </div>
-                </div>
-                <a href="/tutorial" class="tutorial-link">📖 Learn OpenRTB</a>
+        <header class="header">
+            <div class="header-inner">
+                <h1>📊 Bid Analyzer</h1>
+                <p>OpenRTB Request & Response Inspector</p>
             </div>
         </header>
 
-        <main class="main-content">
-            <!-- Mode Selection Cards -->
-            <section class="mode-selection">
-                <h2 class="section-title">Select Analysis Mode</h2>
-                <div class="mode-cards">
-                    <div class="mode-card active" data-mode="request">
-                        <div class="mode-card-icon">🔍</div>
-                        <h3>Request Analyzer</h3>
-                        <p>Inspect a single bid request and understand its signals</p>
-                    </div>
-                    <div class="mode-card" data-mode="response">
-                        <div class="mode-card-icon">📨</div>
-                        <h3>Response Analyzer</h3>
-                        <p>Analyze a bid response and validate seat/bid structure</p>
-                    </div>
-                    <div class="mode-card" data-mode="compare">
-                        <div class="mode-card-icon">⚖️</div>
-                        <h3>Compare</h3>
-                        <p>Compare request vs response for ID matching and compliance</p>
-                    </div>
-                </div>
-            </section>
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Mode Selector -->
+            <div class="mode-selector">
+                <label for="mode-select">Select Analysis:</label>
+                <select id="mode-select">
+                    <option value="request">📋 Bid Request Analyzer</option>
+                    <option value="response">📨 Bid Response Analyzer</option>
+                    <option value="compare">⚖️ Compare Request & Response</option>
+                </select>
+            </div>
 
-            <div class="workspace">
-                <!-- Input Section -->
-                <section class="input-section">
-                    <div class="input-header">
-                        <h2 class="section-title">Upload or Paste Data</h2>
-                        <p class="section-subtitle" id="mode-description">Choose a bid request file or paste JSON</p>
-                    </div>
+            <div class="content-grid">
+                <!-- Input Panel -->
+                <div class="input-panel">
+                    <h2>Input</h2>
 
-                    <!-- Request Input -->
-                    <div class="input-panel mode-panel active" id="mode-request" style="display: block;">
-                        <div class="input-tabs">
-                            <button class="input-tab active" data-tab="paste">Paste JSON</button>
-                            <button class="input-tab" data-tab="upload">Upload File</button>
-                            <button class="input-tab" data-tab="url">Fetch URL</button>
-                            <button class="input-tab" data-tab="sample">Sample</button>
+                    <!-- Request Mode -->
+                    <div class="mode-content" id="input-request">
+                        <div class="input-group">
+                            <label>Paste JSON:</label>
+                            <textarea id="request-raw" placeholder='{"id":"req-1","imp":[...]}'></textarea>
                         </div>
 
-                        <div class="input-tab-content active" id="tab-paste-request">
-                            <textarea id="request-raw" class="code-editor" placeholder='{"id":"req-1","imp":[...]}'></textarea>
-                        </div>
-
-                        <div class="input-tab-content" id="tab-upload-request">
-                            <div class="upload-area">
-                                <input id="request-file" type="file" class="file-input" accept=".json,.txt,.log,.gz">
-                                <label for="request-file" class="upload-label">
-                                    <span class="upload-icon">📁</span>
-                                    <span class="upload-text">Click to upload or drag & drop</span>
-                                    <span class="upload-hint">JSON, TXT, LOG files up to 10MB</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="input-tab-content" id="tab-url-request">
-                            <input id="request-url" type="url" class="text-input" placeholder="https://example.com/request.json">
-                            <button class="btn btn-secondary" id="fetch-request-btn">Fetch URL</button>
-                        </div>
-
-                        <div class="input-tab-content" id="tab-sample-request">
+                        <div class="button-group">
+                            <button class="btn-secondary" onclick="document.getElementById('request-file').click()">📁 Upload File</button>
                             <select id="request-sample" class="select-input">
-                                <option value="">Choose a request sample</option>
+                                <option value="">Choose Sample...</option>
                             </select>
-                            <button class="btn btn-secondary" id="load-request-sample-btn">Load Sample</button>
+                            <button class="btn-secondary" onclick="loadSample('request')">Load</button>
+                            <input id="request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                         </div>
                     </div>
 
-                    <!-- Response Input -->
-                    <div class="input-panel mode-panel" id="mode-response" style="display: none;">
-                        <div class="input-tabs">
-                            <button class="input-tab active" data-tab="paste">Paste JSON</button>
-                            <button class="input-tab" data-tab="upload">Upload File</button>
-                            <button class="input-tab" data-tab="url">Fetch URL</button>
-                            <button class="input-tab" data-tab="sample">Sample</button>
+                    <!-- Response Mode -->
+                    <div class="mode-content" id="input-response" style="display:none;">
+                        <div class="input-group">
+                            <label>Paste JSON:</label>
+                            <textarea id="response-raw" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
                         </div>
 
-                        <div class="input-tab-content active" id="tab-paste-response">
-                            <textarea id="response-raw" class="code-editor" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
-                        </div>
-
-                        <div class="input-tab-content" id="tab-upload-response">
-                            <div class="upload-area">
-                                <input id="response-file" type="file" class="file-input" accept=".json,.txt,.log,.gz">
-                                <label for="response-file" class="upload-label">
-                                    <span class="upload-icon">📁</span>
-                                    <span class="upload-text">Click to upload or drag & drop</span>
-                                    <span class="upload-hint">JSON, TXT, LOG files up to 10MB</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="input-tab-content" id="tab-url-response">
-                            <input id="response-url" type="url" class="text-input" placeholder="https://example.com/response.json">
-                            <button class="btn btn-secondary" id="fetch-response-btn">Fetch URL</button>
-                        </div>
-
-                        <div class="input-tab-content" id="tab-sample-response">
+                        <div class="button-group">
+                            <button class="btn-secondary" onclick="document.getElementById('response-file').click()">📁 Upload File</button>
                             <select id="response-sample" class="select-input">
-                                <option value="">Choose a response sample</option>
+                                <option value="">Choose Sample...</option>
                             </select>
-                            <button class="btn btn-secondary" id="load-response-sample-btn">Load Sample</button>
+                            <button class="btn-secondary" onclick="loadSample('response')">Load</button>
+                            <input id="response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                         </div>
                     </div>
 
-                    <!-- Compare Input -->
-                    <div class="compare-inputs mode-panel" id="mode-compare" style="display: none;">
-                        <div class="compare-grid">
-                            <!-- Request Panel -->
-                            <div class="compare-panel">
-                                <h3 class="compare-title">Bid Request</h3>
-                                <div class="input-tabs">
-                                    <button class="input-tab active" data-tab="paste">Paste</button>
-                                    <button class="input-tab" data-tab="upload">Upload</button>
-                                    <button class="input-tab" data-tab="sample">Sample</button>
-                                </div>
-
-                                <div class="input-tab-content active" id="tab-paste-compare-request">
-                                    <textarea id="compare-request-raw" class="code-editor" placeholder='{"id":"req-1","imp":[...]}'></textarea>
-                                </div>
-
-                                <div class="input-tab-content" id="tab-upload-compare-request">
-                                    <div class="upload-area">
-                                        <input id="compare-request-file" type="file" class="file-input" accept=".json,.txt,.log,.gz">
-                                        <label for="compare-request-file" class="upload-label">
-                                            <span class="upload-icon">📁</span>
-                                            <span class="upload-text">Upload Request</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="input-tab-content" id="tab-sample-compare-request">
-                                    <select id="compare-request-sample" class="select-input">
-                                        <option value="">Choose sample</option>
-                                    </select>
-                                    <button class="btn btn-secondary" id="load-compare-request-sample-btn">Load</button>
-                                </div>
+                    <!-- Compare Mode -->
+                    <div class="mode-content" id="input-compare" style="display:none;">
+                        <div class="compare-inputs">
+                            <div class="compare-input">
+                                <h3>Bid Request</h3>
+                                <textarea id="compare-request-raw" placeholder='{"id":"req-1","imp":[...]}'></textarea>
+                                <button class="btn-secondary" onclick="document.getElementById('compare-request-file').click()">📁 Upload</button>
+                                <input id="compare-request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
-
-                            <!-- Response Panel -->
-                            <div class="compare-panel">
-                                <h3 class="compare-title">Bid Response</h3>
-                                <div class="input-tabs">
-                                    <button class="input-tab active" data-tab="paste">Paste</button>
-                                    <button class="input-tab" data-tab="upload">Upload</button>
-                                    <button class="input-tab" data-tab="sample">Sample</button>
-                                </div>
-
-                                <div class="input-tab-content active" id="tab-paste-compare-response">
-                                    <textarea id="compare-response-raw" class="code-editor" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
-                                </div>
-
-                                <div class="input-tab-content" id="tab-upload-compare-response">
-                                    <div class="upload-area">
-                                        <input id="compare-response-file" type="file" class="file-input" accept=".json,.txt,.log,.gz">
-                                        <label for="compare-response-file" class="upload-label">
-                                            <span class="upload-icon">📁</span>
-                                            <span class="upload-text">Upload Response</span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="input-tab-content" id="tab-sample-compare-response">
-                                    <select id="compare-response-sample" class="select-input">
-                                        <option value="">Choose sample</option>
-                                    </select>
-                                    <button class="btn btn-secondary" id="load-compare-response-sample-btn">Load</button>
-                                </div>
+                            <div class="compare-input">
+                                <h3>Bid Response</h3>
+                                <textarea id="compare-response-raw" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
+                                <button class="btn-secondary" onclick="document.getElementById('compare-response-file').click()">📁 Upload</button>
+                                <input id="compare-response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
                         </div>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="action-buttons">
-                        <button id="analyze-btn" class="btn btn-primary">
-                            <span>▶</span> Analyze Now
-                        </button>
-                        <button id="clear-btn" class="btn btn-ghost">Clear</button>
+                        <button id="analyze-btn" class="btn-primary">▶ Analyze</button>
+                        <button class="btn-secondary" onclick="clearInputs()">Clear</button>
                     </div>
-                </section>
+                </div>
 
-                <!-- Results Section -->
-                <section class="results-section">
-                    <div id="results-placeholder" class="results-placeholder">
-                        <div class="placeholder-content">
-                            <div class="placeholder-icon">✨</div>
-                            <h3>Ready to analyze</h3>
-                            <p>Upload or paste a bid payload and click Analyze to get started</p>
-                        </div>
+                <!-- Results Panel -->
+                <div class="results-panel">
+                    <h2>Results</h2>
+                    <div id="results-placeholder" class="placeholder">
+                        <p>✨ Upload or paste data and click Analyze</p>
                     </div>
-
-                    <div id="results" class="results hidden">
-                        <div class="results-header">
-                            <div>
-                                <h2 class="results-title">Analysis Results</h2>
-                                <div id="results-status" class="status-badge"></div>
-                            </div>
-                            <div class="export-buttons">
-                                <button id="copy-report-btn" class="btn btn-small btn-ghost" disabled>📋 Copy</button>
-                                <button id="export-html-btn" class="btn btn-small btn-ghost" disabled>💾 HTML</button>
-                                <button id="export-json-btn" class="btn btn-small btn-ghost" disabled>📄 JSON</button>
-                            </div>
-                        </div>
-
+                    <div id="results-content" style="display:none;">
                         <div class="results-tabs">
-                            <button class="result-tab active" data-tab="overview">Overview</button>
-                            <button class="result-tab" data-tab="request-summary">Request</button>
-                            <button class="result-tab" data-tab="response-summary">Response</button>
-                            <button class="result-tab" data-tab="type-detection">Type</button>
-                            <button class="result-tab" data-tab="comparison">Compare</button>
-                            <button class="result-tab" data-tab="human">Explain</button>
-                            <button class="result-tab" data-tab="interpretation">Signals</button>
-                            <button class="result-tab" data-tab="warnings">Warnings</button>
-                            <button class="result-tab" data-tab="interview">Interview</button>
-                            <button class="result-tab" data-tab="raw">Raw JSON</button>
+                            <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
+                            <button class="tab-btn" onclick="switchTab('request', this)">Request</button>
+                            <button class="tab-btn" onclick="switchTab('response', this)">Response</button>
+                            <button class="tab-btn" onclick="switchTab('compare', this)">Compare</button>
+                            <button class="tab-btn" onclick="switchTab('warnings', this)">Warnings</button>
+                            <button class="tab-btn" onclick="switchTab('raw', this)">Raw</button>
                         </div>
-
-                        <div id="tab-overview" class="result-tab-content active"></div>
-                        <div id="tab-request-summary" class="result-tab-content"></div>
-                        <div id="tab-response-summary" class="result-tab-content"></div>
-                        <div id="tab-type-detection" class="result-tab-content"></div>
-                        <div id="tab-comparison" class="result-tab-content"></div>
-                        <div id="tab-human" class="result-tab-content"></div>
-                        <div id="tab-interpretation" class="result-tab-content"></div>
-                        <div id="tab-warnings" class="result-tab-content"></div>
-                        <div id="tab-interview" class="result-tab-content"></div>
-                        <div id="tab-raw" class="result-tab-content"></div>
+                        <div class="tab-contents">
+                            <div class="tab-content active" id="tab-overview"></div>
+                            <div class="tab-content" id="tab-request"></div>
+                            <div class="tab-content" id="tab-response"></div>
+                            <div class="tab-content" id="tab-compare"></div>
+                            <div class="tab-content" id="tab-warnings"></div>
+                            <div class="tab-content" id="tab-raw"></div>
+                        </div>
+                        <div class="export-buttons">
+                            <button class="btn-secondary" onclick="copyResults()">📋 Copy</button>
+                            <button class="btn-secondary" onclick="exportJSON()">📄 JSON</button>
+                            <button class="btn-secondary" onclick="exportHTML()">💾 HTML</button>
+                        </div>
                     </div>
-                </section>
+                </div>
             </div>
         </main>
 
-        <!-- Status Banner -->
-        <div id="status-banner" class="status-banner hidden"></div>
+        <!-- Status Message -->
+        <div id="status-msg" class="status-msg"></div>
     </div>
 
     <script src="/static/app.js"></script>
