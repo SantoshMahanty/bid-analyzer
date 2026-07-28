@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupKeyboardShortcuts();
     setupDragDrop();
     setupInputMethodTabs();
+    initializeTheme();
 });
 
 /* Events */
@@ -645,44 +646,23 @@ function setupDragDrop() {
 
 /* Phase 2: Input Method Tabs */
 function setupInputMethodTabs() {
-    // Initialize: hide all non-active content with a small delay
-    setTimeout(() => {
-        document.querySelectorAll(".input-method-content").forEach(el => {
-            if (el.classList.contains("active")) {
-                el.style.cssText = "display: block !important;";
-            } else {
-                el.style.cssText = "display: none !important;";
-            }
-        });
-    }, 0);
-
     document.querySelectorAll(".input-method-tab").forEach(tab => {
         tab.addEventListener("click", () => {
             const mode = tab.dataset.mode;
             const method = tab.dataset.method;
 
-            // Update active tab
-            document.querySelectorAll(`[data-mode="${mode}"]`).forEach(t => {
+            document.querySelectorAll(`.input-method-tab[data-mode="${mode}"]`).forEach(t => {
                 t.classList.remove("active");
             });
             tab.classList.add("active");
 
-            // Update visible content
-            document.querySelectorAll(`.input-method-content`).forEach(el => {
-                if (el.id.endsWith(`-${mode}`)) {
-                    el.classList.remove("active");
-                    el.style.display = "none";
-                }
+            document.querySelectorAll(".input-method-content").forEach(el => {
+                if (el.id.endsWith(`-${mode}`)) el.classList.remove("active");
             });
-            const content = document.getElementById(`method-${method}-${mode}`);
-            if (content) {
-                content.classList.add("active");
-                content.style.display = "block";
-            }
+            document.getElementById(`method-${method}-${mode}`)?.classList.add("active");
         });
     });
 
-    // Populate samples with pills
     populateSamplePills("request");
     populateSamplePills("response");
 }
@@ -944,8 +924,3 @@ function generatePDFHTML() {
 </body>
 </html>`;
 }
-
-// Initialize Phase 4 on page load
-document.addEventListener('DOMContentLoaded', () => {
-    initializeTheme();
-});

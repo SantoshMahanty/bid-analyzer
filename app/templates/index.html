@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bid Analyzer - OpenRTB Inspector</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v={{ asset_v }}">
 </head>
 <body>
     <!-- Animated Background -->
@@ -13,13 +13,11 @@
     <div class="app">
         <!-- Header -->
         <header class="header">
-            <div class="header-content">
+            <div class="header-main">
                 <div class="header-left">
                     <span class="logo-icon">📊</span>
-                    <div class="header-text">
-                        <h1>Bid Analyzer</h1>
-                        <p>OpenRTB Inspector</p>
-                    </div>
+                    <h1 class="header-title">Bid Analyzer</h1>
+                    <p class="header-subtitle">OpenRTB Inspector</p>
                 </div>
                 <div class="header-right">
                     <button class="header-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
@@ -255,6 +253,6 @@
     <!-- Status Notification -->
     <div id="status-notification" class="status-notification"></div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v={{ asset_v }}"></script>
 </body>
 </html>

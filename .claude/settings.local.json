@@ -27,7 +27,8 @@
       "Bash(git commit -m 'Phase 3: Visual Design & KPI Metrics Enhancements *)",
       "Bash(git commit -m 'Phase 4: Theme & Export Tools - Enterprise Features *)",
       "Bash(git commit -m 'Redesign header with unified layout *)",
-      "Bash(git commit -m 'Optimize header for better element visibility *)"
+      "Bash(git commit -m 'Optimize header for better element visibility *)",
+      "Bash(grep -n \"^\\\\.header\\\\|^\\\\.logo-icon\\\\|^\\\\.header-text\\\\|^@keyframes float\\\\|^/\\\\* Main \\\\*/\" app/static/styles.css)"
     ]
   }
 }
