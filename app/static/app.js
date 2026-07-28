@@ -9,7 +9,18 @@ document.addEventListener("DOMContentLoaded", () => {
     bindInputTabs();
     bindActions();
     loadSamples();
+    initializeUI();
 });
+
+function initializeUI() {
+    // Initialize with request mode active
+    document.getElementById("mode-request").style.display = "block";
+    document.getElementById("mode-response").style.display = "none";
+    document.getElementById("mode-compare").style.display = "none";
+
+    // Mark request card as active
+    document.querySelector('[data-mode="request"]').classList.add("active");
+}
 
 /* Mode Selection */
 function bindModeCards() {
@@ -30,13 +41,16 @@ function switchMode(mode) {
     });
     document.querySelector(`[data-mode="${mode}"]`).classList.add("active");
 
-    // Update mode panels
-    document.querySelectorAll(".mode-panel").forEach((panel) => {
-        panel.style.display = "none";
-        panel.classList.remove("active");
-    });
-    document.getElementById(`mode-${mode}`).style.display = "block";
-    document.getElementById(`mode-${mode}`).classList.add("active");
+    // Hide all mode panels
+    document.getElementById("mode-request").style.display = "none";
+    document.getElementById("mode-response").style.display = "none";
+    document.getElementById("mode-compare").style.display = "none";
+
+    // Show selected mode panel
+    const modePanel = document.getElementById(`mode-${mode}`);
+    if (modePanel) {
+        modePanel.style.display = "block";
+    }
 
     // Update description
     const descriptions = {
