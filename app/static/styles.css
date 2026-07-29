@@ -58,6 +58,103 @@ html[data-theme="dark"] {
     --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
+/* ── Result surfaces and status tones ─────────────────────────────────
+   app.js builds the result panels at runtime. It used to hardcode light
+   hex values there, which could not follow the theme — in dark mode that
+   left 24 light cards stranded on the dark page, and text that inherited
+   the near-white theme colour landed on a pale card at 1.04:1 contrast.
+   These tokens exist so the generated markup stays theme-aware. */
+:root {
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --surface-border: #e2e8f0;
+
+    --pass-bg: rgba(16, 185, 129, 0.10);
+    --pass-fg: #047857;
+    --pass-border: #10b981;
+
+    --warn-bg: rgba(245, 158, 11, 0.12);
+    --warn-fg: #92400e;
+    --warn-border: #f59e0b;
+
+    --fail-bg: rgba(239, 68, 68, 0.10);
+    --fail-fg: #991b1b;
+    --fail-border: #ef4444;
+
+    --info-bg: rgba(56, 189, 248, 0.12);
+    --info-fg: #075985;
+    --info-border: #38bdf8;
+
+    --kv-key: #4338ca;   /* 7.6:1 on --surface-alt */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --surface: #1e293b;
+        --surface-alt: #172033;
+        --surface-border: #334155;
+
+        --pass-bg: rgba(16, 185, 129, 0.14);
+        --pass-fg: #34d399;
+        --warn-bg: rgba(245, 158, 11, 0.14);
+        --warn-fg: #fbbf24;
+        --fail-bg: rgba(239, 68, 68, 0.14);
+        --fail-fg: #f87171;
+        --info-bg: rgba(56, 189, 248, 0.14);
+        --info-fg: #38bdf8;
+    --kv-key: #a5b4fc;   /* 8.0:1 on --surface-alt */
+    --kv-key: #a5b4fc;   /* 8.0:1 on --surface-alt */
+    }
+}
+
+html[data-theme="dark"] {
+    --surface: #1e293b;
+    --surface-alt: #172033;
+    --surface-border: #334155;
+
+    --pass-bg: rgba(16, 185, 129, 0.14);
+    --pass-fg: #34d399;
+    --warn-bg: rgba(245, 158, 11, 0.14);
+    --warn-fg: #fbbf24;
+    --fail-bg: rgba(239, 68, 68, 0.14);
+    --fail-fg: #f87171;
+    --info-bg: rgba(56, 189, 248, 0.14);
+    --info-fg: #38bdf8;
+}
+
+/* Explicit light theme. Without this, a machine whose OS is set to dark
+   keeps the prefers-color-scheme values when the user toggles to light —
+   the toggle would light up the surfaces while leaving text near-white.
+   This block must therefore restate the whole palette, not just the
+   surface tokens. */
+html[data-theme="light"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --surface-border: #e2e8f0;
+
+    --pass-bg: rgba(16, 185, 129, 0.10);
+    --pass-fg: #065f46;
+    --warn-bg: rgba(245, 158, 11, 0.12);
+    --warn-fg: #78350f;
+    --fail-bg: rgba(239, 68, 68, 0.10);
+    --fail-fg: #7f1d1d;
+    --info-bg: rgba(56, 189, 248, 0.12);
+    --info-fg: #075985;
+    --kv-key: #4338ca;
+}
+
 html, body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     background: var(--bg-secondary);
@@ -213,7 +310,7 @@ html, body {
     align-items: center;
     gap: 0.9rem;
     flex-wrap: wrap;
-    background: white;
+    background: var(--bg-primary);
     border-radius: 12px;
     padding: 0.7rem 1.1rem;
     margin-bottom: 1.25rem;
@@ -292,7 +389,7 @@ html, body {
 }
 
 .section {
-    background: white;
+    background: var(--bg-primary);
     border-radius: 16px;
     padding: 2rem;
     box-shadow: var(--shadow-md);
@@ -397,7 +494,7 @@ html, body {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-    background: white;
+    background: var(--bg-primary);
 }
 
 .code-input::placeholder {
@@ -499,7 +596,7 @@ html, body {
     border: 2px solid var(--border);
     border-radius: 8px;
     font-size: 0.9rem;
-    background: white;
+    background: var(--bg-primary);
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.3s;
@@ -545,7 +642,7 @@ html, body {
 
 .btn-secondary:hover {
     border-color: var(--primary);
-    background: white;
+    background: var(--bg-primary);
     box-shadow: var(--shadow-md);
 }
 
@@ -873,3 +970,253 @@ html, body {
         grid-template-columns: 1fr;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Result rendering primitives
+   Used by displayResults() / displayBatchResults() in app.js. Keeping
+   these here rather than as inline styles is what makes the generated
+   panels follow the theme.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.r-stack {
+    display: grid;
+    gap: 1rem;
+}
+
+.r-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.r-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 600px) {
+    .r-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* Key/value row used by the Request and Response summary tabs. */
+.r-kv {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.7rem 0.85rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+}
+
+.r-kv dt,
+.r-kv .r-kv-key {
+    font-weight: 600;
+    color: var(--kv-key);
+}
+
+.r-kv dd,
+.r-kv .r-kv-val {
+    color: var(--text-secondary);
+    text-align: right;
+    word-break: break-word;
+    margin: 0;
+}
+
+/* Status surfaces. One class per tone; every colour comes from a token. */
+.status-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 1rem 1.25rem;
+    border-left: 4px solid;
+    border-radius: 8px;
+}
+
+.status-card .status-icon { font-size: 1.15rem; line-height: 1.4; }
+.status-card .status-body { flex: 1; }
+.status-card .status-title { font-weight: 600; margin-bottom: 0.2rem; }
+
+.status-card.pass { background: var(--pass-bg); border-color: var(--pass-border); color: var(--pass-fg); }
+.status-card.warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-fg); }
+.status-card.fail { background: var(--fail-bg); border-color: var(--fail-border); color: var(--fail-fg); }
+.status-card.info { background: var(--info-bg); border-color: var(--info-border); color: var(--info-fg); }
+
+/* Numeric tiles (matched / warnings / failures, batch KPIs). */
+.stat-tile {
+    padding: 1rem;
+    border-left: 4px solid;
+    border-radius: 8px;
+    background: var(--surface);
+    border-top: 1px solid var(--surface-border);
+    border-right: 1px solid var(--surface-border);
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.stat-tile .stat-num { font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
+.stat-tile .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    margin-top: 0.2rem;
+}
+
+.stat-tile.pass { background: var(--pass-bg); border-left-color: var(--pass-border); color: var(--pass-fg); }
+.stat-tile.warn { background: var(--warn-bg); border-left-color: var(--warn-border); color: var(--warn-fg); }
+.stat-tile.fail { background: var(--fail-bg); border-left-color: var(--fail-border); color: var(--fail-fg); }
+.stat-tile.info { background: var(--info-bg); border-left-color: var(--info-border); color: var(--info-fg); }
+.stat-tile.neutral { border-left-color: var(--primary); color: var(--text-primary); }
+
+/* Banner used for the compare verdict. Tinted, not saturated, so the
+   heading text keeps a readable contrast ratio in both themes. */
+.verdict-banner {
+    padding: 1.25rem 1.5rem;
+    border-radius: 12px;
+    border-left: 6px solid;
+}
+
+.verdict-banner h3 { margin: 0 0 0.35rem 0; font-size: 1.15rem; }
+.verdict-banner p { margin: 0; font-size: 0.9rem; opacity: 0.85; }
+.verdict-banner.pass { background: var(--pass-bg); border-color: var(--pass-border); color: var(--pass-fg); }
+.verdict-banner.warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-fg); }
+.verdict-banner.fail { background: var(--fail-bg); border-color: var(--fail-border); color: var(--fail-fg); }
+
+/* Distribution bars in the batch overview. */
+.dist-row { margin-bottom: 0.5rem; }
+.dist-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+    color: var(--text-secondary);
+}
+.dist-track {
+    background: var(--surface-alt);
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+}
+.dist-fill {
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    height: 100%;
+}
+
+/* Per-entry batch table. */
+.r-table-wrap { overflow-x: auto; }
+.r-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.r-table th,
+.r-table td {
+    text-align: left;
+    padding: 0.55rem 0.6rem;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--surface-border);
+}
+.r-table th {
+    background: var(--surface-alt);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--surface-border);
+}
+.r-table td { color: var(--text-secondary); }
+.r-table tr.has-error td { background: var(--fail-bg); color: var(--fail-fg); }
+
+.r-empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* ── Phase 6b: sticky analyze bar ──────────────────────────────────────
+   The action row used to sit below a 200-line textarea, so analysing a
+   real payload meant scrolling to the bottom first. */
+.button-group {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    padding: 0.85rem 0;
+    margin-top: 0.5rem;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border);
+}
+
+/* ── Phase 6b: export menu ─────────────────────────────────────────────
+   Five buttons crowded the results header; one trigger plus a menu. */
+.export-menu { position: relative; }
+
+.export-menu[hidden] { display: none; }
+
+.export-menu-list {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    min-width: 190px;
+    padding: 0.35rem;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    z-index: 40;
+    display: grid;
+    gap: 0.15rem;
+}
+
+.export-menu-list[hidden] { display: none; }
+
+.export-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.export-menu-item:hover,
+.export-menu-item:focus-visible {
+    background: var(--surface-alt);
+    outline: none;
+}
+
+.export-menu-item:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+/* ── Phase 6b: warning counts on tabs ──────────────────────────────── */
+.tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    margin-left: 0.35rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    color: var(--warn-fg);
+}
+
+.tab-badge.fail {
+    background: var(--fail-bg);
+    border-color: var(--fail-border);
+    color: var(--fail-fg);
+}
+
+.tab-badge[hidden] { display: none; }

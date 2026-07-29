@@ -13,7 +13,64 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupResultTabs();
     setupJSONValidation();
     initializeTheme();
+    setupExportMenu();
 });
+
+/* Export menu. Five buttons crowded the results header, so they now live
+   behind one trigger. Implemented as a real ARIA menu: Escape and
+   click-outside close it, arrow keys walk the items, and focus returns to
+   the trigger on close so keyboard users are not stranded. */
+function setupExportMenu() {
+    const trigger = document.getElementById("export-trigger");
+    const list = document.getElementById("export-menu-list");
+    if (!trigger || !list) return;
+
+    const items = () => Array.from(list.querySelectorAll(".export-menu-item"));
+
+    const open = () => {
+        list.hidden = false;
+        trigger.setAttribute("aria-expanded", "true");
+        items()[0]?.focus();
+    };
+
+    const close = (refocus) => {
+        if (list.hidden) return;
+        list.hidden = true;
+        trigger.setAttribute("aria-expanded", "false");
+        if (refocus) trigger.focus();
+    };
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        list.hidden ? open() : close(false);
+    });
+
+    // Any selection performs its action via onclick, then dismisses the menu.
+    list.addEventListener("click", (e) => {
+        if (e.target.closest(".export-menu-item")) close(true);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("#export-group")) close(false);
+    });
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") close(true);
+    });
+
+    list.addEventListener("keydown", (e) => {
+        const all = items();
+        const i = all.indexOf(document.activeElement);
+        if (e.key === "ArrowDown") { e.preventDefault(); all[(i + 1) % all.length].focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); all[(i - 1 + all.length) % all.length].focus(); }
+        else if (e.key === "Home") { e.preventDefault(); all[0].focus(); }
+        else if (e.key === "End") { e.preventDefault(); all[all.length - 1].focus(); }
+    });
+
+    trigger.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); open(); }
+    });
+}
 
 /* Events */
 function bindEvents() {
@@ -137,6 +194,9 @@ function clearInputs() {
     document.querySelectorAll("select").forEach(sel => sel.value = "");
     document.getElementById("results-placeholder").style.display = "block";
     document.getElementById("results-content").style.display = "none";
+    document.getElementById("export-group").hidden = true;
+    updateWarningBadge(0, false);
+    state.report = null;
 }
 
 async function analyzeAll() {
@@ -263,15 +323,15 @@ function displayResults(report) {
                 </div>
 
                 <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
-                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px;'>
+                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px;'>
                         <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Request ID</div>
                         <div style='font-size: 0.85rem; word-break: break-all;'>${(report.request.summary?.request_id || "—").substring(0, 12)}</div>
                     </div>
-                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px;'>
+                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px;'>
                         <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Devices</div>
                         <div style='font-size: 0.85rem;'>${report.request.summary?.device_type_count || 1} types</div>
                     </div>
-                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px;'>
+                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px;'>
                         <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Publishers</div>
                         <div style='font-size: 0.85rem;'>${report.request.summary?.publisher_count || 1}</div>
                     </div>
@@ -307,15 +367,15 @@ function displayResults(report) {
                 </div>
 
                 <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
-                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px; text-align: center;'>
+                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px; text-align: center;'>
                         <div style='font-size: 1.5rem; font-weight: 700;'>${bidCount}</div>
                         <div style='font-size: 0.75rem; opacity: 0.9;'>Total Bids</div>
                     </div>
-                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px; text-align: center;'>
+                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px; text-align: center;'>
                         <div style='font-size: 1.5rem; font-weight: 700;'>${seatCount}</div>
                         <div style='font-size: 0.75rem; opacity: 0.9;'>Seat Count</div>
                     </div>
-                    <div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 10px; text-align: center;'>
+                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px; text-align: center;'>
                         <div style='font-size: 1.5rem; font-weight: 700;'>${report.response.summary?.avg_bid_price ? "$" + report.response.summary.avg_bid_price : "—"}</div>
                         <div style='font-size: 0.75rem; opacity: 0.9;'>Avg Bid</div>
                     </div>
@@ -333,119 +393,88 @@ function displayResults(report) {
     overviewHtml += "</div>";
     document.getElementById("tab-overview").innerHTML = overviewHtml;
 
-    // Phase 3: Enhanced Human Explanations Tab
+    // Insights
     const explanations = report.request?.human_explanations || [];
     if (explanations.length > 0) {
-        let html = `<div style='display: grid; gap: 1rem;'>
-            <div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
-                <h3 style='margin: 0 0 0.5rem 0;'>💡 Key Insights</h3>
-                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${explanations.length} important finding${explanations.length !== 1 ? "s" : ""}</p>
-            </div>
-
-            <div style='display: grid; gap: 1rem;'>`;
+        let html = `<div class='r-stack'>
+            <div class='verdict-banner pass'>
+                <h3>💡 Key Insights</h3>
+                <p>${explanations.length} important finding${explanations.length !== 1 ? "s" : ""}</p>
+            </div>`;
 
         explanations.forEach((exp, i) => {
-            const colors = ['#f0fdf4', '#d1fae5', '#a7f3d0'];
-            const borderColors = ['#10b981', '#059669', '#047857'];
-            html += `<div style='padding: 1.5rem; background: ${colors[i % 3]}; border-left: 4px solid ${borderColors[i % 3]}; border-radius: 10px;'>
-                <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
-                    <span style='font-size: 1.5rem;'>💡</span>
-                    <div>
-                        <div style='font-weight: 700; color: #047857; margin-bottom: 0.5rem;'>Insight ${i+1}</div>
-                        <div style='color: #1f2937; line-height: 1.5;'>${exp}</div>
-                    </div>
+            html += `<div class='status-card pass'>
+                <span class='status-icon' aria-hidden='true'>💡</span>
+                <div class='status-body'>
+                    <div class='status-title'>Insight ${i + 1}</div>
+                    <div>${esc(exp)}</div>
                 </div>
             </div>`;
         });
-        html += "</div></div>";
-        if (document.getElementById("tab-human")) {
-            document.getElementById("tab-human").innerHTML = html;
-        }
+        html += "</div>";
+        document.getElementById("tab-human").innerHTML = html;
     }
 
-    // Phase 3: Enhanced Signals & CTV Tab
+    // Signals & CTV
     const signals = report.request?.inferred_signals || {};
     if (Object.keys(signals).length > 0) {
-        let html = `<div style='display: grid; gap: 1rem;'>
-            <div style='background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
-                <h3 style='margin: 0 0 0.5rem 0;'>📺 Detected Signals</h3>
-                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${Object.keys(signals).length} signal${Object.keys(signals).length !== 1 ? "s" : ""} identified</p>
-            </div>
+        const iconFor = (key) =>
+            key.includes("ctv") ? "📺" : key.includes("version") ? "📦" : key.includes("privacy") ? "🔒" : "🎯";
 
-            <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;'>`;
+        let html = `<div class='r-stack'>
+            <div class='verdict-banner pass'>
+                <h3>📺 Detected Signals</h3>
+                <p>${Object.keys(signals).length} signal${Object.keys(signals).length !== 1 ? "s" : ""} identified</p>
+            </div>`;
 
         for (const [key, value] of Object.entries(signals)) {
-            let icon, bgColor, borderColor;
-            if (key.includes('ctv')) {
-                icon = '📺';
-                bgColor = '#fdf2f8';
-                borderColor = '#be185d';
-            } else if (key.includes('version')) {
-                icon = '📦';
-                bgColor = '#eff6ff';
-                borderColor = '#0369a1';
-            } else if (key.includes('privacy')) {
-                icon = '🔒';
-                bgColor = '#f0fdf4';
-                borderColor = '#059669';
-            } else {
-                icon = '🎯';
-                bgColor = '#fefce8';
-                borderColor = '#ca8a04';
-            }
-
-            html += `<div style='padding: 1.25rem; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 10px;'>
-                <div style='display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem;'>
-                    <span style='font-size: 1.5rem;'>${icon}</span>
-                    <div style='font-weight: 700; flex: 1;'>${key.replace(/_/g, ' ').toUpperCase()}</div>
+            html += `<div class='status-card info'>
+                <span class='status-icon' aria-hidden='true'>${iconFor(key)}</span>
+                <div class='status-body'>
+                    <div class='status-title'>${esc(key.replace(/_/g, " ").toUpperCase())}</div>
+                    <div>${esc(typeof value === "object" ? JSON.stringify(value, null, 2) : value)}</div>
                 </div>
-                <div style='font-size: 0.9rem; color: #475569; line-height: 1.5;'>${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</div>
             </div>`;
         }
-        html += "</div></div>";
-        if (document.getElementById("tab-signals")) {
-            document.getElementById("tab-signals").innerHTML = html;
-        }
+        html += "</div>";
+        document.getElementById("tab-signals").innerHTML = html;
     }
 
-    // Interview Cheatsheet Tab
+    // Interview cheatsheet
     const interviewPoints = report.request?.interview_points || [];
     if (interviewPoints.length > 0) {
-        let html = "<div style='display: grid; gap: 1rem;'>";
+        let html = "<div class='r-stack'>";
         interviewPoints.forEach((point, i) => {
-            html += `<div style='padding: 1.25rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;'>
-                <div style='font-weight: 600; color: #92400e; margin-bottom: 0.5rem;'>🎓 Point ${i+1}</div>
-                <div style='color: #1f2937;'>${point}</div>
+            html += `<div class='status-card warn'>
+                <span class='status-icon' aria-hidden='true'>🎓</span>
+                <div class='status-body'>
+                    <div class='status-title'>Point ${i + 1}</div>
+                    <div>${esc(point)}</div>
+                </div>
             </div>`;
         });
         html += "</div>";
-        if (document.getElementById("tab-interview")) {
-            document.getElementById("tab-interview").innerHTML = html;
-        }
+        document.getElementById("tab-interview").innerHTML = html;
     }
 
-    // Request Summary
+    // Request / Response summaries as key-value rows
+    const summaryRows = (summary) => {
+        let html = "<div class='r-stack' style='gap: 0.5rem;'>";
+        for (const [k, v] of Object.entries(summary || {})) {
+            html += `<div class='r-kv'>
+                <span class='r-kv-key'>${esc(k)}</span>
+                <span class='r-kv-val'>${esc(typeof v === "object" ? JSON.stringify(v) : v)}</span>
+            </div>`;
+        }
+        return html + "</div>";
+    };
+
     if (report.request) {
-        let html = "<div style='display: grid; gap: 0.75rem;'>";
-        for (const [k, v] of Object.entries(report.request.summary || {})) {
-            html += `<div style='padding: 0.75rem; background: #f9fafb; border-radius: 6px; display: flex; justify-content: space-between;'>
-                <strong style='color: #667eea;'>${k}:</strong><span style='color: #475569;'>${typeof v === 'object' ? JSON.stringify(v) : v}</span>
-            </div>`;
-        }
-        html += "</div>";
-        document.getElementById("tab-request").innerHTML = html;
+        document.getElementById("tab-request").innerHTML = summaryRows(report.request.summary);
     }
 
-    // Response Summary
     if (report.response) {
-        let html = "<div style='display: grid; gap: 0.75rem;'>";
-        for (const [k, v] of Object.entries(report.response.summary || {})) {
-            html += `<div style='padding: 0.75rem; background: #f9fafb; border-radius: 6px; display: flex; justify-content: space-between;'>
-                <strong style='color: #f5576c;'>${k}:</strong><span style='color: #475569;'>${typeof v === 'object' ? JSON.stringify(v) : v}</span>
-            </div>`;
-        }
-        html += "</div>";
-        document.getElementById("tab-response").innerHTML = html;
+        document.getElementById("tab-response").innerHTML = summaryRows(report.response.summary);
     }
 
     /* Compare matrix. The backend returns {overall_status, checks[], summary};
@@ -455,122 +484,109 @@ function displayResults(report) {
         const summary = report.comparison.summary || {};
         const overall = report.comparison.overall_status || "UNKNOWN";
 
-        const tone = {
-            PASS: { bg: "#d1fae5", border: "#10b981", text: "#065f46", icon: "✅" },
-            WARNING: { bg: "#fef3c7", border: "#f59e0b", text: "#78350f", icon: "⚠️" },
-            FAIL: { bg: "#fee2e2", border: "#ef4444", text: "#7f1d1d", icon: "❌" }
-        };
-        const overallColor = { PASS: "#10b981", WARNING: "#f59e0b", FAIL: "#ef4444" }[overall] || "#667eea";
+        const toneClass = { PASS: "pass", WARNING: "warn", FAIL: "fail" };
+        const toneIcon = { PASS: "✅", WARNING: "⚠️", FAIL: "❌" };
+        const verdictClass = { PASS: "pass", WARNING: "warn", FAIL: "fail" }[overall] || "warn";
 
         const passed = checks.filter(c => c.status === "PASS").length;
         const warned = checks.filter(c => c.status === "WARNING").length;
         const failed = checks.filter(c => c.status === "FAIL").length;
 
-        let html = `<div style='display: grid; gap: 1rem;'>
-            <div style='background: ${overallColor}; color: white; padding: 1.5rem; border-radius: 12px;'>
-                <h3 style='margin: 0 0 0.5rem 0;'>⚖️ Request vs Response — ${esc(overall)}</h3>
-                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${checks.length} check${checks.length !== 1 ? "s" : ""} run across ${summary.request_impression_count ?? 0} impression(s) and ${summary.response_bid_count ?? 0} bid(s)</p>
+        let html = `<div class='r-stack'>
+            <div class='verdict-banner ${verdictClass}'>
+                <h3>⚖️ Request vs Response — ${esc(overall)}</h3>
+                <p>${checks.length} check${checks.length !== 1 ? "s" : ""} run across ${summary.request_impression_count ?? 0} impression(s) and ${summary.response_bid_count ?? 0} bid(s)</p>
             </div>
 
-            <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
-                <div style='background: #d1fae5; border-left: 4px solid #10b981; padding: 1rem; border-radius: 8px;'>
-                    <div style='font-size: 1.5rem; font-weight: 700; color: #047857;'>${passed}</div>
-                    <div style='font-size: 0.85rem; color: #065f46;'>✓ Passed</div>
-                </div>
-                <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 8px;'>
-                    <div style='font-size: 1.5rem; font-weight: 700; color: #92400e;'>${warned}</div>
-                    <div style='font-size: 0.85rem; color: #78350f;'>⚠️ Warnings</div>
-                </div>
-                <div style='background: #fee2e2; border-left: 4px solid #ef4444; padding: 1rem; border-radius: 8px;'>
-                    <div style='font-size: 1.5rem; font-weight: 700; color: #991b1b;'>${failed}</div>
-                    <div style='font-size: 0.85rem; color: #7f1d1d;'>❌ Failures</div>
-                </div>
+            <div class='r-grid-3'>
+                <div class='stat-tile pass'><div class='stat-num'>${passed}</div><div class='stat-label'>✓ Passed</div></div>
+                <div class='stat-tile warn'><div class='stat-num'>${warned}</div><div class='stat-label'>⚠️ Warnings</div></div>
+                <div class='stat-tile fail'><div class='stat-num'>${failed}</div><div class='stat-label'>❌ Failures</div></div>
             </div>`;
 
-        const blocked = (summary.blocklist_violations || 0) + (summary.seat_violations || 0);
-        if (blocked || summary.below_floor_bids || summary.deal_mismatches || (summary.unmatched_impids || []).length) {
-            const chips = [];
-            if (summary.below_floor_bids) chips.push(`${summary.below_floor_bids} bid(s) below floor`);
-            if (summary.deal_mismatches) chips.push(`${summary.deal_mismatches} deal mismatch(es)`);
-            if (summary.blocklist_violations) chips.push(`${summary.blocklist_violations} blocklist violation(s)`);
-            if (summary.seat_violations) chips.push(`${summary.seat_violations} seat violation(s)`);
-            if ((summary.unmatched_impids || []).length) chips.push(`${summary.unmatched_impids.length} unmatched impid(s)`);
-            html += `<div style='padding: 1rem 1.25rem; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 8px; color: #7f1d1d;'>
-                <strong>Why this bid may be discarded:</strong> ${chips.map(esc).join(" • ")}
+        const chips = [];
+        if (summary.below_floor_bids) chips.push(`${summary.below_floor_bids} bid(s) below floor`);
+        if (summary.deal_mismatches) chips.push(`${summary.deal_mismatches} deal mismatch(es)`);
+        if (summary.blocklist_violations) chips.push(`${summary.blocklist_violations} blocklist violation(s)`);
+        if (summary.seat_violations) chips.push(`${summary.seat_violations} seat violation(s)`);
+        if ((summary.unmatched_impids || []).length) chips.push(`${summary.unmatched_impids.length} unmatched impid(s)`);
+        if (chips.length) {
+            html += `<div class='status-card fail'>
+                <span class='status-icon' aria-hidden='true'>🚫</span>
+                <div class='status-body'>
+                    <div class='status-title'>Why this bid may be discarded</div>
+                    <div>${chips.map(esc).join(" • ")}</div>
+                </div>
             </div>`;
         }
 
-        html += "<div style='display: grid; gap: 0.75rem;'>";
         if (!checks.length) {
-            html += `<div style='padding: 1.25rem; opacity: 0.7;'>No comparable fields were found in these two payloads.</div>`;
+            html += `<div class='r-empty'>No comparable fields were found in these two payloads.</div>`;
         }
         for (const check of checks) {
-            const t = tone[check.status] || tone.WARNING;
-            html += `<div style='padding: 1.25rem; background: ${t.bg}; border-left: 4px solid ${t.border}; border-radius: 8px; color: ${t.text};'>
-                <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
-                    <span style='font-size: 1.25rem;'>${t.icon}</span>
-                    <div style='flex: 1;'>
-                        <div style='font-weight: 600; margin-bottom: 0.25rem;'>${esc(check.label)}</div>
-                        <div>${esc(check.message)}</div>
-                    </div>
+            html += `<div class='status-card ${toneClass[check.status] || "warn"}'>
+                <span class='status-icon' aria-hidden='true'>${toneIcon[check.status] || "⚠️"}</span>
+                <div class='status-body'>
+                    <div class='status-title'>${esc(check.label)}</div>
+                    <div>${esc(check.message)}</div>
                 </div>
             </div>`;
         }
 
-        html += "</div></div>";
+        html += "</div>";
         document.getElementById("tab-compare").innerHTML = html;
     } else {
-        document.getElementById("tab-compare").innerHTML = `<div style='padding: 2rem; text-align: center; color: #6b7280;'>
-            <p style='font-size: 1rem; margin: 0;'>📊 Compare both request and response to see verification results</p>
-            <p style='font-size: 0.85rem; margin: 0.5rem 0 0 0; opacity: 0.8;'>Paste or upload both payloads in Request and Response modes, then use Compare mode</p>
+        document.getElementById("tab-compare").innerHTML = `<div class='r-empty'>
+            <p>📊 Compare both request and response to see verification results</p>
+            <p style='font-size: 0.85rem; margin-top: 0.5rem;'>Paste both payloads in Compare mode, then analyze</p>
         </div>`;
     }
 
-    // Phase 3: Enhanced Warnings with Categories
+    // Warnings and errors
     const warnings = [
         ...(report.request?.warnings || []),
         ...(report.response?.warnings || [])
     ];
+    const errors = [
+        ...(report.request?.errors || []),
+        ...(report.response?.errors || [])
+    ];
+    updateWarningBadge(warnings.length + errors.length, errors.length > 0);
+
     if (warnings.length === 0) {
         document.getElementById("tab-warnings").innerHTML = `
-            <div style='padding: 2rem; text-align: center; background: #d1fae5; border-radius: 12px; border: 2px solid #10b981;'>
-                <div style='font-size: 2rem; margin-bottom: 0.5rem;'>✓</div>
-                <p style='color: #047857; font-weight: 600; margin: 0;'>All Clear!</p>
-                <p style='color: #065f46; font-size: 0.9rem; margin: 0.5rem 0 0 0;'>No warnings or errors detected in your payloads</p>
+            <div class='status-card pass' style='flex-direction: column; align-items: center; text-align: center; padding: 2rem;'>
+                <span class='status-icon' style='font-size: 2rem;' aria-hidden='true'>✓</span>
+                <div class='status-body'>
+                    <div class='status-title'>All clear</div>
+                    <div>No warnings or errors detected in your payloads</div>
+                </div>
             </div>`;
     } else {
-        let html = `<div style='display: grid; gap: 1rem;'>
-            <div style='background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
-                <h3 style='margin: 0 0 0.5rem 0;'>⚠️ Issues Found</h3>
-                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${warnings.length} warning${warnings.length !== 1 ? "s" : ""} detected</p>
-            </div>
-
-            <div style='display: grid; gap: 0.75rem;'>`;
+        let html = `<div class='r-stack'>
+            <div class='verdict-banner warn'>
+                <h3>⚠️ Issues Found</h3>
+                <p>${warnings.length} warning${warnings.length !== 1 ? "s" : ""} detected</p>
+            </div>`;
 
         warnings.forEach((w, idx) => {
-            const level = w.toLowerCase().includes('error') || w.toLowerCase().includes('critical') ? 'error' : 'warning';
-            const bgColor = level === 'error' ? '#fee2e2' : '#fef3c7';
-            const borderColor = level === 'error' ? '#ef4444' : '#f59e0b';
-            const textColor = level === 'error' ? '#7f1d1d' : '#92400e';
-            const icon = level === 'error' ? '🚨' : '⚠️';
-
-            html += `<div style='padding: 1.25rem; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 8px; color: ${textColor};'>
-                <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
-                    <span style='font-size: 1.25rem;'>${icon}</span>
-                    <div>
-                        <div style='font-weight: 600; margin-bottom: 0.25rem;'>${level === 'error' ? 'Error' : 'Warning'} #${idx + 1}</div>
-                        <div>${w}</div>
-                    </div>
+            const isError = w.toLowerCase().includes("error") || w.toLowerCase().includes("critical");
+            html += `<div class='status-card ${isError ? "fail" : "warn"}'>
+                <span class='status-icon' aria-hidden='true'>${isError ? "🚨" : "⚠️"}</span>
+                <div class='status-body'>
+                    <div class='status-title'>${isError ? "Error" : "Warning"} #${idx + 1}</div>
+                    <div>${esc(w)}</div>
                 </div>
             </div>`;
         });
 
-        html += "</div></div>";
+        html += "</div>";
         document.getElementById("tab-warnings").innerHTML = html;
     }
 
-    // Raw JSON Tree
-    document.getElementById("tab-raw").innerHTML = `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${JSON.stringify(report, null, 2)}</pre>`;
+    // Raw JSON
+    document.getElementById("tab-raw").innerHTML =
+        `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${esc(JSON.stringify(report, null, 2))}</pre>`;
 }
 
 /* Batch payloads come from log files, so their ids and warning strings are
@@ -582,13 +598,12 @@ function esc(value) {
     ));
 }
 
+/* Tone maps to a .stat-tile / .status-card modifier, so every colour comes
+   from a CSS token and follows the active theme. */
 function kpiCard(label, value, tone) {
-    const colors = {
-        good: "#10b981", bad: "#ef4444", neutral: "#6366f1", warn: "#f59e0b"
-    };
-    return `<div style='background: var(--panel-bg, #fff); border: 1px solid var(--panel-border, #e5e7eb); border-left: 4px solid ${colors[tone] || colors.neutral}; padding: 1rem 1.25rem; border-radius: 10px;'>
-        <div style='font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin-bottom: 0.35rem;'>${esc(label)}</div>
-        <div style='font-size: 1.6rem; font-weight: 800;'>${esc(value)}</div>
+    return `<div class='stat-tile ${tone || "neutral"}'>
+        <div class='stat-label'>${esc(label)}</div>
+        <div class='stat-num'>${esc(value)}</div>
     </div>`;
 }
 
@@ -599,16 +614,28 @@ function distributionBlock(title, distribution) {
         <h4 style='margin: 0 0 0.75rem 0; font-size: 0.95rem;'>${esc(title)}</h4>`;
     for (const [key, count] of Object.entries(distribution)) {
         const pct = Math.round((count / total) * 100);
-        html += `<div style='margin-bottom: 0.5rem;'>
-            <div style='display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.2rem;'>
-                <span>${esc(key)}</span><span style='opacity: 0.7;'>${count} (${pct}%)</span>
-            </div>
-            <div style='background: rgba(127,127,127,0.18); border-radius: 6px; height: 8px; overflow: hidden;'>
-                <div style='background: linear-gradient(90deg, #667eea, #764ba2); width: ${pct}%; height: 100%;'></div>
-            </div>
+        html += `<div class='dist-row'>
+            <div class='dist-head'><span>${esc(key)}</span><span>${count} (${pct}%)</span></div>
+            <div class='dist-track'><div class='dist-fill' style='width: ${pct}%;'></div></div>
         </div>`;
     }
     return html + "</div>";
+}
+
+/* Warning count on the tab strip, so the number is visible without
+   opening the tab. Errors switch it to the failure tone. */
+function updateWarningBadge(count, hasErrors) {
+    const badge = document.getElementById("warnings-badge");
+    if (!badge) return;
+    badge.textContent = count > 99 ? "99+" : String(count);
+    badge.classList.toggle("fail", !!hasErrors);
+    badge.hidden = count === 0;
+    const tab = document.getElementById("tabbtn-warnings");
+    if (tab) {
+        tab.setAttribute("aria-label", count === 0
+            ? "Warnings, none"
+            : `Warnings, ${count} ${hasErrors ? "including errors" : "total"}`);
+    }
 }
 
 function displayBatchResults(report) {
@@ -620,29 +647,33 @@ function displayBatchResults(report) {
     const rows = report.rows || [];
 
     /* --- Overview: aggregate KPIs ------------------------------------- */
-    let overview = `<div style='display: grid; gap: 1.5rem;'>
-        <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+    let overview = `<div class='r-stack' style='gap: 1.5rem;'>
+        <div class='r-grid'>
             ${kpiCard("Entries analyzed", agg.entries_analyzed ?? 0, "neutral")}
-            ${kpiCard("Valid", agg.valid_count ?? 0, "good")}
-            ${kpiCard("Invalid", agg.invalid_count ?? 0, (agg.invalid_count ? "bad" : "good"))}
+            ${kpiCard("Valid", agg.valid_count ?? 0, "pass")}
+            ${kpiCard("Invalid", agg.invalid_count ?? 0, (agg.invalid_count ? "fail" : "pass"))}
             ${kpiCard("Skipped", agg.entries_skipped ?? 0, (agg.entries_skipped ? "warn" : "neutral"))}
             ${kpiCard("Requests", agg.request_count ?? 0, "neutral")}
             ${kpiCard("Responses", agg.response_count ?? 0, "neutral")}
-            ${kpiCard("Total warnings", agg.total_warnings ?? 0, (agg.total_warnings ? "warn" : "good"))}
-            ${kpiCard("Total errors", agg.total_errors ?? 0, (agg.total_errors ? "bad" : "good"))}
+            ${kpiCard("Total warnings", agg.total_warnings ?? 0, (agg.total_warnings ? "warn" : "pass"))}
+            ${kpiCard("Total errors", agg.total_errors ?? 0, (agg.total_errors ? "fail" : "pass"))}
         </div>`;
 
     const notes = (report.notes || []).concat(agg.notes || []);
     if (notes.length) {
-        overview += `<div style='padding: 1rem 1.25rem; background: rgba(99,102,241,0.1); border-left: 4px solid #6366f1; border-radius: 8px; font-size: 0.9rem;'>
-            ${notes.map(n => `<div>• ${esc(n)}</div>`).join("")}
+        overview += `<div class='status-card info'>
+            <span class='status-icon' aria-hidden='true'>ℹ️</span>
+            <div class='status-body'>${notes.map(n => `<div>• ${esc(n)}</div>`).join("")}</div>
         </div>`;
     }
 
     if ((report.line_errors || []).length) {
-        overview += `<div style='padding: 1rem 1.25rem; background: rgba(245,158,11,0.12); border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 0.9rem;'>
-            <strong>${report.line_errors.length} unparseable line(s) skipped</strong>
-            ${report.line_errors.slice(0, 10).map(e => `<div>• line ${e.line}: ${esc(e.error)}</div>`).join("")}
+        overview += `<div class='status-card warn'>
+            <span class='status-icon' aria-hidden='true'>⚠️</span>
+            <div class='status-body'>
+                <div class='status-title'>${report.line_errors.length} unparseable line(s) skipped</div>
+                ${report.line_errors.slice(0, 10).map(e => `<div>• line ${e.line}: ${esc(e.error)}</div>`).join("")}
+            </div>
         </div>`;
     }
 
@@ -654,7 +685,7 @@ function displayBatchResults(report) {
             <div>${distributionBlock("Version guess", rb.version_guess)}${distributionBlock("Deal type", rb.deal_type)}</div>
         </div>`;
         if (rb.bid_floor) {
-            overview += `<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+            overview += `<div class='r-grid'>
                 ${kpiCard("Min floor", rb.bid_floor.min, "neutral")}
                 ${kpiCard("Avg floor", rb.bid_floor.avg, "neutral")}
                 ${kpiCard("Max floor", rb.bid_floor.max, "neutral")}
@@ -666,7 +697,7 @@ function displayBatchResults(report) {
     if (sb) {
         overview += distributionBlock("No-bid style", sb.no_bid_style);
         if (sb.bid_price) {
-            overview += `<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+            overview += `<div class='r-grid'>
                 ${kpiCard("Min price", sb.bid_price.min, "neutral")}
                 ${kpiCard("Avg price", sb.bid_price.avg, "neutral")}
                 ${kpiCard("Max price", sb.bid_price.max, "neutral")}
@@ -679,18 +710,17 @@ function displayBatchResults(report) {
     /* --- Batch tab: per-entry table ----------------------------------- */
     let table = "";
     if (!rows.length) {
-        table = "<p style='opacity: 0.7;'>No entries could be analyzed.</p>";
+        table = "<div class='r-empty'>No entries could be analyzed.</div>";
     } else {
         const isRequest = rows.some(r => r.kind === "request");
         const headers = isRequest
             ? ["#", "ID", "Imps", "Format", "Inventory", "Environment", "CTV", "Version", "Floor", "Warn", "Err"]
             : ["#", "ID", "Seats", "Bids", "Min price", "Max price", "No-bid", "Creative", "Warn", "Err"];
 
-        table = `<div style='overflow-x: auto;'><table style='width: 100%; border-collapse: collapse; font-size: 0.85rem;'>
-            <thead><tr>${headers.map(h => `<th style='text-align: left; padding: 0.6rem; border-bottom: 2px solid rgba(127,127,127,0.3); white-space: nowrap;'>${esc(h)}</th>`).join("")}</tr></thead><tbody>`;
+        table = `<div class='r-table-wrap'><table class='r-table'>
+            <thead><tr>${headers.map(h => `<th scope='col'>${esc(h)}</th>`).join("")}</tr></thead><tbody>`;
 
         rows.forEach(r => {
-            const bad = r.error_count > 0;
             const cells = r.kind === "request"
                 ? [r.index, r.id, r.impressions, r.ad_format, r.inventory_source, r.environment,
                    `${r.ctv_score ?? "—"} (${r.ctv_label ?? "—"})`, r.version_guess,
@@ -700,17 +730,19 @@ function displayBatchResults(report) {
                    r.min_bid_price ?? "—", r.max_bid_price ?? "—",
                    r.no_bid_reason ?? "—", r.creative_metadata, r.warning_count, r.error_count];
 
-            table += `<tr style='background: ${bad ? "rgba(239,68,68,0.08)" : "transparent"};'>` +
-                cells.map(c => `<td style='padding: 0.55rem 0.6rem; border-bottom: 1px solid rgba(127,127,127,0.15); white-space: nowrap;'>${esc(c)}</td>`).join("") +
-                "</tr>";
+            table += `<tr class='${r.error_count > 0 ? "has-error" : ""}'>` +
+                cells.map(c => `<td>${esc(c)}</td>`).join("") + "</tr>";
         });
         table += "</tbody></table></div>";
     }
 
     if ((report.skipped || []).length) {
-        table += `<div style='margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(245,158,11,0.12); border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 0.9rem;'>
-            <strong>Skipped entries</strong>
-            ${report.skipped.slice(0, 20).map(s => `<div>• entry ${s.index}: ${esc(s.reason)}</div>`).join("")}
+        table += `<div class='status-card warn' style='margin-top: 1.5rem;'>
+            <span class='status-icon' aria-hidden='true'>⚠️</span>
+            <div class='status-body'>
+                <div class='status-title'>Skipped entries</div>
+                ${report.skipped.slice(0, 20).map(s => `<div>• entry ${s.index}: ${esc(s.reason)}</div>`).join("")}
+            </div>
         </div>`;
     }
     document.getElementById("tab-batch").innerHTML = table;
@@ -718,26 +750,27 @@ function displayBatchResults(report) {
     /* --- Warnings tab: ranked by frequency ---------------------------- */
     const topErrors = agg.top_errors || [];
     const topWarnings = agg.top_warnings || [];
+    updateWarningBadge((agg.total_warnings || 0) + (agg.total_errors || 0), (agg.total_errors || 0) > 0);
+
     let warnHtml = "";
     if (!topErrors.length && !topWarnings.length) {
-        warnHtml = "<div style='padding: 2rem; text-align: center; opacity: 0.7;'>✅ No warnings or errors across the batch.</div>";
+        warnHtml = "<div class='r-empty'>✅ No warnings or errors across the batch.</div>";
     } else {
         const section = (title, items, tone) => {
             if (!items.length) return "";
-            const color = tone === "error" ? "#ef4444" : "#f59e0b";
             return `<h4 style='margin: 1rem 0 0.75rem 0;'>${esc(title)}</h4>` + items.map(item =>
-                `<div style='display: flex; gap: 1rem; align-items: flex-start; padding: 0.85rem 1rem; margin-bottom: 0.5rem; border-left: 4px solid ${color}; background: rgba(127,127,127,0.07); border-radius: 6px;'>
-                    <span style='font-weight: 800; min-width: 3rem;'>${item.count}×</span>
-                    <span>${esc(item.message)}</span>
+                `<div class='status-card ${tone}' style='margin-bottom: 0.5rem;'>
+                    <span class='status-icon' style='font-weight: 800; min-width: 3rem;'>${item.count}×</span>
+                    <div class='status-body'>${esc(item.message)}</div>
                 </div>`).join("");
         };
-        warnHtml = section(`Most frequent errors (${agg.distinct_errors || 0} distinct)`, topErrors, "error") +
-                   section(`Most frequent warnings (${agg.distinct_warnings || 0} distinct)`, topWarnings, "warning");
+        warnHtml = section(`Most frequent errors (${agg.distinct_errors || 0} distinct)`, topErrors, "fail") +
+                   section(`Most frequent warnings (${agg.distinct_warnings || 0} distinct)`, topWarnings, "warn");
     }
     document.getElementById("tab-warnings").innerHTML = warnHtml;
 
     /* --- Tabs that carry no meaning for a batch ----------------------- */
-    const na = "<div style='padding: 2rem; text-align: center; opacity: 0.6;'>Not applicable in Batch mode. Use the Overview, Batch, and Warnings tabs.</div>";
+    const na = "<div class='r-empty'>Not applicable in Batch mode. Use the Overview, Batch, and Warnings tabs.</div>";
     ["tab-human", "tab-request", "tab-response", "tab-compare", "tab-signals", "tab-interview"]
         .forEach(id => { document.getElementById(id).innerHTML = na; });
 

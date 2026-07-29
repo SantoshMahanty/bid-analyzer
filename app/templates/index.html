@@ -222,12 +222,19 @@
                 <div class="section results-section">
                     <div class="section-header results-header">
                         <h2>📊 Results</h2>
-                        <div class="export-group" id="export-group" hidden>
-                            <button class="btn btn-secondary" onclick="copyResults()">📋 Copy</button>
-                            <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
-                            <button class="btn btn-secondary" onclick="exportHTML()">💾 HTML</button>
-                            <button class="btn btn-secondary" onclick="exportCSV()">📊 CSV</button>
-                            <button class="btn btn-secondary" onclick="exportPDF()">📑 PDF</button>
+                        <div class="export-menu" id="export-group" hidden>
+                            <button class="btn btn-secondary" id="export-trigger" type="button"
+                                    aria-haspopup="true" aria-expanded="false" aria-controls="export-menu-list">
+                                📥 Export <span aria-hidden="true">▾</span>
+                            </button>
+                            <div class="export-menu-list" id="export-menu-list" role="menu"
+                                 aria-labelledby="export-trigger" hidden>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="copyResults()">📋 Copy to clipboard</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportJSON()">📄 JSON data</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportCSV()">📊 CSV table</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportHTML()">💾 HTML dump</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportPDF()">📑 Printable report</button>
+                            </div>
                         </div>
                     </div>
 
@@ -256,7 +263,7 @@
                                 <div class="results-tabs" role="tablist" aria-label="Reference and diagnostics">
                                     <button class="tab-button" role="tab" id="tabbtn-signals" aria-controls="tab-signals" aria-selected="false" tabindex="-1">📺 Signals</button>
                                     <button class="tab-button" role="tab" id="tabbtn-interview" aria-controls="tab-interview" aria-selected="false" tabindex="-1">🎓 Cheatsheet</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-warnings" aria-controls="tab-warnings" aria-selected="false" tabindex="-1">⚠️ Warnings</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-warnings" aria-controls="tab-warnings" aria-selected="false" tabindex="-1">⚠️ Warnings<span class="tab-badge" id="warnings-badge" hidden></span></button>
                                     <button class="tab-button" role="tab" id="tabbtn-raw" aria-controls="tab-raw" aria-selected="false" tabindex="-1">📄 Raw</button>
                                 </div>
                             </div>
