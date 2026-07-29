@@ -12,9 +12,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupInputMethodTabs();
     setupResultTabs();
     setupJSONValidation();
+    setupEditors();
     initializeTheme();
     setupExportMenu();
 });
+
+/* Icon reference for markup built in JS. Same sprite as the template, so
+   generated results and static chrome share one icon set. */
+function icon(name, extraClass) {
+    return `<svg class="icon ${extraClass || ""}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+/* Count badges on the tab strip, so a tab's weight is visible without
+   opening it. `tone` picks the badge colour; null count hides it. */
+function setBadge(id, count, tone) {
+    const badge = document.getElementById(id);
+    if (!badge) return;
+    const n = Number(count) || 0;
+    badge.textContent = n > 99 ? "99+" : String(n);
+    badge.classList.toggle("fail", tone === "fail");
+    badge.classList.toggle("neutral", tone === "neutral");
+    badge.hidden = n === 0;
+}
+
+function clearBadges() {
+    ["insights-badge", "signals-badge", "compare-badge", "batch-badge", "warnings-badge"]
+        .forEach(id => setBadge(id, 0));
+}
 
 /* Export menu. Five buttons crowded the results header, so they now live
    behind one trigger. Implemented as a real ARIA menu: Escape and
@@ -173,7 +197,9 @@ function loadSample(mode) {
     if (!sample) return;
 
     const textareaId = `${mode}-raw`;
-    document.getElementById(textareaId).value = sample.content;
+    const _ta = document.getElementById(textareaId);
+    _ta.value = sample.content;
+    _ta.dispatchEvent(new Event("input"));
     showStatus(`Loaded ${sample.name}`, "info");
 }
 
@@ -183,7 +209,9 @@ function handleFileUpload(e, mode) {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-        document.getElementById(`${mode}-raw`).value = event.target.result;
+        const target = document.getElementById(`${mode}-raw`);
+        target.value = event.target.result;
+        target.dispatchEvent(new Event("input"));
         showStatus(`Uploaded ${file.name}`, "info");
     };
     reader.readAsText(file);
@@ -195,7 +223,7 @@ function clearInputs() {
     document.getElementById("results-placeholder").style.display = "block";
     document.getElementById("results-content").style.display = "none";
     document.getElementById("export-group").hidden = true;
-    updateWarningBadge(0, false);
+    clearBadges();
     state.report = null;
 }
 
@@ -313,7 +341,7 @@ function displayResults(report) {
             <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
                     <div>
-                        <h3 style='margin: 0; font-size: 1.5rem;'>📋 Bid Request</h3>
+                        <h3 style='margin: 0; font-size: 1.5rem;'>${icon('list')} Bid Request</h3>
                         <p style='margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;'>${report.request.summary?.ad_format || "Standard"} • ${report.request.summary?.environment_guess || "Web"}</p>
                     </div>
                     <div style='text-align: right;'>
@@ -339,7 +367,7 @@ function displayResults(report) {
 
                 <div style='margin-top: 1.5rem;'>
                     <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <span style='font-size: 0.9rem;'>🎯 CTV Confidence Score</span>
+                        <span style='font-size: 0.9rem;'>${icon('target')} CTV Confidence Score</span>
                         <span style='font-size: 1rem; font-weight: 700;'>${ctvScore}/${ctvMax}</span>
                     </div>
                     <div style='background: rgba(255,255,255,0.2); border-radius: 10px; height: 10px; overflow: hidden;'>
@@ -357,7 +385,7 @@ function displayResults(report) {
             <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);'>
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
                     <div>
-                        <h3 style='margin: 0; font-size: 1.5rem;'>📨 Bid Response</h3>
+                        <h3 style='margin: 0; font-size: 1.5rem;'>${icon('inbox')} Bid Response</h3>
                         <p style='margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;'>${bidCount > 0 ? "Active Bids" : "No Bids"} • ${seatCount} Seat${seatCount !== 1 ? "s" : ""}</p>
                     </div>
                     <div style='text-align: right;'>
@@ -383,8 +411,8 @@ function displayResults(report) {
 
                 <div style='margin-top: 1.5rem;'>
                     <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <span style='font-size: 0.9rem;'>📊 Response Health</span>
-                        <span style='background: ${bidCount > 0 ? "rgba(74, 222, 128, 0.3)" : "rgba(239, 68, 68, 0.3)"}; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;'>${bidCount > 0 ? "✓ Healthy" : "⚠️ No Bids"}</span>
+                        <span style='font-size: 0.9rem;'>${icon('layout')} Response Health</span>
+                        <span style='background: ${bidCount > 0 ? "rgba(74, 222, 128, 0.3)" : "rgba(239, 68, 68, 0.3)"}; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;'>${bidCount > 0 ? "Healthy" : "No Bids"}</span>
                     </div>
                 </div>
             </div>`;
@@ -398,13 +426,13 @@ function displayResults(report) {
     if (explanations.length > 0) {
         let html = `<div class='r-stack'>
             <div class='verdict-banner pass'>
-                <h3>💡 Key Insights</h3>
+                <h3>${icon('bulb')} Key Insights</h3>
                 <p>${explanations.length} important finding${explanations.length !== 1 ? "s" : ""}</p>
             </div>`;
 
         explanations.forEach((exp, i) => {
             html += `<div class='status-card pass'>
-                <span class='status-icon' aria-hidden='true'>💡</span>
+                <span class='status-icon'>${icon('bulb')}</span>
                 <div class='status-body'>
                     <div class='status-title'>Insight ${i + 1}</div>
                     <div>${esc(exp)}</div>
@@ -419,17 +447,18 @@ function displayResults(report) {
     const signals = report.request?.inferred_signals || {};
     if (Object.keys(signals).length > 0) {
         const iconFor = (key) =>
-            key.includes("ctv") ? "📺" : key.includes("version") ? "📦" : key.includes("privacy") ? "🔒" : "🎯";
+            key.includes("ctv") ? icon("tv") : key.includes("version") ? icon("box")
+            : key.includes("privacy") ? icon("lock") : icon("target");
 
         let html = `<div class='r-stack'>
             <div class='verdict-banner pass'>
-                <h3>📺 Detected Signals</h3>
+                <h3>${icon('tv')} Detected Signals</h3>
                 <p>${Object.keys(signals).length} signal${Object.keys(signals).length !== 1 ? "s" : ""} identified</p>
             </div>`;
 
         for (const [key, value] of Object.entries(signals)) {
             html += `<div class='status-card info'>
-                <span class='status-icon' aria-hidden='true'>${iconFor(key)}</span>
+                <span class='status-icon'>${iconFor(key)}</span>
                 <div class='status-body'>
                     <div class='status-title'>${esc(key.replace(/_/g, " ").toUpperCase())}</div>
                     <div>${esc(typeof value === "object" ? JSON.stringify(value, null, 2) : value)}</div>
@@ -446,7 +475,7 @@ function displayResults(report) {
         let html = "<div class='r-stack'>";
         interviewPoints.forEach((point, i) => {
             html += `<div class='status-card warn'>
-                <span class='status-icon' aria-hidden='true'>🎓</span>
+                <span class='status-icon'>${icon('cap')}</span>
                 <div class='status-body'>
                     <div class='status-title'>Point ${i + 1}</div>
                     <div>${esc(point)}</div>
@@ -485,7 +514,7 @@ function displayResults(report) {
         const overall = report.comparison.overall_status || "UNKNOWN";
 
         const toneClass = { PASS: "pass", WARNING: "warn", FAIL: "fail" };
-        const toneIcon = { PASS: "✅", WARNING: "⚠️", FAIL: "❌" };
+        const toneIcon = { PASS: icon("check"), WARNING: icon("warn"), FAIL: icon("fail") };
         const verdictClass = { PASS: "pass", WARNING: "warn", FAIL: "fail" }[overall] || "warn";
 
         const passed = checks.filter(c => c.status === "PASS").length;
@@ -494,14 +523,14 @@ function displayResults(report) {
 
         let html = `<div class='r-stack'>
             <div class='verdict-banner ${verdictClass}'>
-                <h3>⚖️ Request vs Response — ${esc(overall)}</h3>
+                <h3>${icon('scale')} Request vs Response — ${esc(overall)}</h3>
                 <p>${checks.length} check${checks.length !== 1 ? "s" : ""} run across ${summary.request_impression_count ?? 0} impression(s) and ${summary.response_bid_count ?? 0} bid(s)</p>
             </div>
 
             <div class='r-grid-3'>
-                <div class='stat-tile pass'><div class='stat-num'>${passed}</div><div class='stat-label'>✓ Passed</div></div>
-                <div class='stat-tile warn'><div class='stat-num'>${warned}</div><div class='stat-label'>⚠️ Warnings</div></div>
-                <div class='stat-tile fail'><div class='stat-num'>${failed}</div><div class='stat-label'>❌ Failures</div></div>
+                <div class='stat-tile pass'><div class='stat-num'>${passed}</div><div class='stat-label'>Passed</div></div>
+                <div class='stat-tile warn'><div class='stat-num'>${warned}</div><div class='stat-label'>Warnings</div></div>
+                <div class='stat-tile fail'><div class='stat-num'>${failed}</div><div class='stat-label'>Failures</div></div>
             </div>`;
 
         const chips = [];
@@ -512,7 +541,7 @@ function displayResults(report) {
         if ((summary.unmatched_impids || []).length) chips.push(`${summary.unmatched_impids.length} unmatched impid(s)`);
         if (chips.length) {
             html += `<div class='status-card fail'>
-                <span class='status-icon' aria-hidden='true'>🚫</span>
+                <span class='status-icon'>${icon('ban')}</span>
                 <div class='status-body'>
                     <div class='status-title'>Why this bid may be discarded</div>
                     <div>${chips.map(esc).join(" • ")}</div>
@@ -525,7 +554,7 @@ function displayResults(report) {
         }
         for (const check of checks) {
             html += `<div class='status-card ${toneClass[check.status] || "warn"}'>
-                <span class='status-icon' aria-hidden='true'>${toneIcon[check.status] || "⚠️"}</span>
+                <span class='status-icon'>${toneIcon[check.status] || icon('warn')}</span>
                 <div class='status-body'>
                     <div class='status-title'>${esc(check.label)}</div>
                     <div>${esc(check.message)}</div>
@@ -537,7 +566,7 @@ function displayResults(report) {
         document.getElementById("tab-compare").innerHTML = html;
     } else {
         document.getElementById("tab-compare").innerHTML = `<div class='r-empty'>
-            <p>📊 Compare both request and response to see verification results</p>
+            <p>${icon('scale','icon-xl')}</p><p>Compare both request and response to see verification results</p>
             <p style='font-size: 0.85rem; margin-top: 0.5rem;'>Paste both payloads in Compare mode, then analyze</p>
         </div>`;
     }
@@ -551,12 +580,20 @@ function displayResults(report) {
         ...(report.request?.errors || []),
         ...(report.response?.errors || [])
     ];
-    updateWarningBadge(warnings.length + errors.length, errors.length > 0);
+    clearBadges();
+    setBadge("warnings-badge", warnings.length + errors.length, errors.length ? "fail" : "warn");
+    setBadge("insights-badge", explanations.length, "neutral");
+    setBadge("signals-badge", Object.keys(signals).length, "neutral");
+    if (report.comparison) {
+        const failed = (report.comparison.checks || []).filter(c => c.status === "FAIL").length;
+        const warned = (report.comparison.checks || []).filter(c => c.status === "WARNING").length;
+        setBadge("compare-badge", failed + warned, failed ? "fail" : "warn");
+    }
 
     if (warnings.length === 0) {
         document.getElementById("tab-warnings").innerHTML = `
             <div class='status-card pass' style='flex-direction: column; align-items: center; text-align: center; padding: 2rem;'>
-                <span class='status-icon' style='font-size: 2rem;' aria-hidden='true'>✓</span>
+                <span class='status-icon'>${icon('check','icon-xl')}</span>
                 <div class='status-body'>
                     <div class='status-title'>All clear</div>
                     <div>No warnings or errors detected in your payloads</div>
@@ -565,14 +602,14 @@ function displayResults(report) {
     } else {
         let html = `<div class='r-stack'>
             <div class='verdict-banner warn'>
-                <h3>⚠️ Issues Found</h3>
+                <h3>${icon('alert')} Issues Found</h3>
                 <p>${warnings.length} warning${warnings.length !== 1 ? "s" : ""} detected</p>
             </div>`;
 
         warnings.forEach((w, idx) => {
             const isError = w.toLowerCase().includes("error") || w.toLowerCase().includes("critical");
             html += `<div class='status-card ${isError ? "fail" : "warn"}'>
-                <span class='status-icon' aria-hidden='true'>${isError ? "🚨" : "⚠️"}</span>
+                <span class='status-icon'>${isError ? icon('fail') : icon('warn')}</span>
                 <div class='status-body'>
                     <div class='status-title'>${isError ? "Error" : "Warning"} #${idx + 1}</div>
                     <div>${esc(w)}</div>
@@ -622,21 +659,6 @@ function distributionBlock(title, distribution) {
     return html + "</div>";
 }
 
-/* Warning count on the tab strip, so the number is visible without
-   opening the tab. Errors switch it to the failure tone. */
-function updateWarningBadge(count, hasErrors) {
-    const badge = document.getElementById("warnings-badge");
-    if (!badge) return;
-    badge.textContent = count > 99 ? "99+" : String(count);
-    badge.classList.toggle("fail", !!hasErrors);
-    badge.hidden = count === 0;
-    const tab = document.getElementById("tabbtn-warnings");
-    if (tab) {
-        tab.setAttribute("aria-label", count === 0
-            ? "Warnings, none"
-            : `Warnings, ${count} ${hasErrors ? "including errors" : "total"}`);
-    }
-}
 
 function displayBatchResults(report) {
     document.getElementById("results-placeholder").style.display = "none";
@@ -662,14 +684,14 @@ function displayBatchResults(report) {
     const notes = (report.notes || []).concat(agg.notes || []);
     if (notes.length) {
         overview += `<div class='status-card info'>
-            <span class='status-icon' aria-hidden='true'>ℹ️</span>
+            <span class='status-icon'>${icon('info')}</span>
             <div class='status-body'>${notes.map(n => `<div>• ${esc(n)}</div>`).join("")}</div>
         </div>`;
     }
 
     if ((report.line_errors || []).length) {
         overview += `<div class='status-card warn'>
-            <span class='status-icon' aria-hidden='true'>⚠️</span>
+            <span class='status-icon'>${icon('warn')}</span>
             <div class='status-body'>
                 <div class='status-title'>${report.line_errors.length} unparseable line(s) skipped</div>
                 ${report.line_errors.slice(0, 10).map(e => `<div>• line ${e.line}: ${esc(e.error)}</div>`).join("")}
@@ -738,7 +760,7 @@ function displayBatchResults(report) {
 
     if ((report.skipped || []).length) {
         table += `<div class='status-card warn' style='margin-top: 1.5rem;'>
-            <span class='status-icon' aria-hidden='true'>⚠️</span>
+            <span class='status-icon'>${icon('warn')}</span>
             <div class='status-body'>
                 <div class='status-title'>Skipped entries</div>
                 ${report.skipped.slice(0, 20).map(s => `<div>• entry ${s.index}: ${esc(s.reason)}</div>`).join("")}
@@ -750,11 +772,14 @@ function displayBatchResults(report) {
     /* --- Warnings tab: ranked by frequency ---------------------------- */
     const topErrors = agg.top_errors || [];
     const topWarnings = agg.top_warnings || [];
-    updateWarningBadge((agg.total_warnings || 0) + (agg.total_errors || 0), (agg.total_errors || 0) > 0);
+    clearBadges();
+    setBadge("warnings-badge", (agg.total_warnings || 0) + (agg.total_errors || 0),
+             (agg.total_errors || 0) ? "fail" : "warn");
+    setBadge("batch-badge", agg.entries_analyzed || 0, "neutral");
 
     let warnHtml = "";
     if (!topErrors.length && !topWarnings.length) {
-        warnHtml = "<div class='r-empty'>✅ No warnings or errors across the batch.</div>";
+        warnHtml = `<div class='r-empty'>${icon("check","icon-xl")}<div>No warnings or errors across the batch.</div></div>`;
     } else {
         const section = (title, items, tone) => {
             if (!items.length) return "";
@@ -886,7 +911,10 @@ function setupJSONValidation() {
             status.className = "json-status";
             status.id = `${id}-status`;
             status.setAttribute("aria-live", "polite");
-            ta.insertAdjacentElement("afterend", status);
+            // After the shell, not the textarea: the textarea now sits inside a
+            // flex row next to the gutter, and a sibling there would be laid
+            // out as a third column.
+            (ta.closest(".editor-shell") || ta).insertAdjacentElement("afterend", status);
 
             let timer;
             ta.addEventListener("input", () => {
@@ -898,12 +926,15 @@ function setupJSONValidation() {
 
 function validateJSONField(textarea, status) {
     const text = textarea.value.trim();
+    const shell = textarea.closest(".editor-shell");
 
     if (!text) {
         status.textContent = "";
         status.className = "json-status";
         textarea.classList.remove("has-error");
         textarea.removeAttribute("aria-invalid");
+        delete textarea.dataset.errorLine;
+        renderGutter(textarea);
         return;
     }
 
@@ -913,13 +944,93 @@ function validateJSONField(textarea, status) {
         status.className = "json-status valid";
         textarea.classList.remove("has-error");
         textarea.removeAttribute("aria-invalid");
+        delete textarea.dataset.errorLine;
     } catch (err) {
         const where = jsonErrorLocation(textarea.value, err);
         status.textContent = `✗ ${err.message}${where}`;
         status.className = "json-status invalid";
         textarea.classList.add("has-error");
         textarea.setAttribute("aria-invalid", "true");
+        const line = jsonErrorLine(textarea.value, err);
+        if (line) textarea.dataset.errorLine = String(line);
+        else delete textarea.dataset.errorLine;
     }
+    if (shell) shell.classList.toggle("has-error", textarea.classList.contains("has-error"));
+    renderGutter(textarea);
+}
+
+/* The numeric counterpart of jsonErrorLocation, used to highlight the
+   failing row in the gutter. */
+function jsonErrorLine(text, err) {
+    const named = /line (\d+)/i.exec(err.message);
+    if (named) return Number(named[1]);
+    const pos = /position (\d+)/.exec(err.message);
+    if (!pos) return null;
+    return text.slice(0, Number(pos[1])).split("\n").length;
+}
+
+/* ── Line-number gutter ───────────────────────────────────────────────
+   A real textarea with a synced gutter, rather than a contenteditable
+   rewrite: it keeps native undo, spellcheck control, IME and accessibility
+   behaviour that a custom editor would have to reimplement. */
+function renderGutter(textarea) {
+    const shell = textarea.closest(".editor-shell");
+    const gutter = shell?.querySelector(".editor-gutter");
+    if (!gutter) return;
+
+    const lines = textarea.value ? textarea.value.split("\n").length : 1;
+    const errorLine = Number(textarea.dataset.errorLine || 0);
+
+    let html = "";
+    for (let n = 1; n <= lines; n++) {
+        html += n === errorLine
+            ? `<span class='gutter-error'>${n}</span>\n`
+            : `${n}\n`;
+    }
+    gutter.innerHTML = html;
+    gutter.scrollTop = textarea.scrollTop;
+}
+
+function setupEditors() {
+    document.querySelectorAll(".editor-shell .code-input").forEach(ta => {
+        renderGutter(ta);
+        ta.addEventListener("input", () => renderGutter(ta));
+        // Native scroll on the textarea; the gutter follows it.
+        ta.addEventListener("scroll", () => {
+            const g = ta.closest(".editor-shell")?.querySelector(".editor-gutter");
+            if (g) g.scrollTop = ta.scrollTop;
+        });
+    });
+}
+
+/* Editor toolbar actions. */
+function copyEditor(id) {
+    const ta = document.getElementById(id);
+    if (!ta || !ta.value.trim()) {
+        showStatus("Nothing to copy", "info");
+        return;
+    }
+    navigator.clipboard.writeText(ta.value).then(() => showStatus("Copied to clipboard", "success"));
+}
+
+function clearEditor(id) {
+    const ta = document.getElementById(id);
+    if (!ta) return;
+    ta.value = "";
+    ta.dispatchEvent(new Event("input"));
+    showStatus("Editor cleared", "info");
+}
+
+function loadFirstSample(mode) {
+    const sample = state.samples.find(s => s.kind === mode);
+    if (!sample) {
+        showStatus("No sample available", "error");
+        return;
+    }
+    const ta = document.getElementById(`${mode}-raw`);
+    ta.value = sample.content;
+    ta.dispatchEvent(new Event("input"));
+    showStatus(`Loaded ${sample.name}`, "success");
 }
 
 /* Older engines report only "at position N"; derive line/column from it.
@@ -940,9 +1051,9 @@ function prettifyJSON(textareaId) {
     try {
         const parsed = JSON.parse(textarea.value);
         textarea.value = JSON.stringify(parsed, null, 2);
-        showStatus("✨ JSON formatted", "success");
+        showStatus("JSON formatted", "success");
     } catch (err) {
-        showStatus("❌ Invalid JSON: " + err.message, "error");
+        showStatus("Invalid JSON: " + err.message, "error");
     }
 }
 
@@ -1024,7 +1135,7 @@ function populateSamplePills(mode) {
     const samples = state.samples.filter(s => s.kind === mode);
     grid.innerHTML = samples.map(s =>
         `<button class="sample-pill" onclick="loadSampleByName('${s.name}', '${mode}')">
-            📋 ${s.name.replace('sample_', '').replace(`.json`, '')}
+            ${icon('file')} ${s.name.replace('sample_', '').replace(`.json`, '')}
         </button>`
     ).join("");
 }
@@ -1036,7 +1147,7 @@ function loadSampleByName(sampleName, mode) {
         return;
     }
     document.getElementById(`${mode}-raw`).value = sample.content;
-    showStatus(`✅ Loaded ${sampleName}`, "success");
+    showStatus(`Loaded ${sampleName}`, "success");
 }
 
 /* Phase 2: URL Fetcher */
@@ -1050,7 +1161,7 @@ async function fetchURL(mode) {
     }
 
     try {
-        showStatus("🌐 Fetching...", "info");
+        showStatus("Fetching...", "info");
         const response = await fetch("/fetch/url", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1063,17 +1174,17 @@ async function fetchURL(mode) {
         // the payload as `text` — not `content`.
         const data = await response.json();
         if (!data.ok) {
-            showStatus(`❌ ${data.error || "Fetch failed"}`, "error");
+            showStatus(`${data.error || "Fetch failed"}`, "error");
             return;
         }
 
         const target = document.getElementById(`${mode}-raw`);
         target.value = data.text || "";
         target.dispatchEvent(new Event("input"));   // run JSON validation
-        (data.notes || []).forEach(n => showStatus(`⚠️ ${n}`, "error"));
-        showStatus("✅ Fetched successfully", "success");
+        (data.notes || []).forEach(n => showStatus(n, "error"));
+        showStatus("Fetched successfully", "success");
     } catch (err) {
-        showStatus(`❌ Fetch failed: ${err.message}`, "error");
+        showStatus(`Fetch failed: ${err.message}`, "error");
     }
 }
 
@@ -1101,13 +1212,12 @@ function applyTheme(theme) {
     const toggle = document.getElementById('theme-toggle');
     const dark = theme === 'dark';
 
-    if (dark) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-        document.documentElement.removeAttribute('data-theme');
-    }
-    toggle.textContent = dark ? '☀️' : '🌙';
-    // The emoji carries no meaning for screen readers, so state lives here.
+    // Explicit on both sides. Setting only "dark" would leave a machine whose
+    // OS is dark stuck on the prefers-color-scheme values when toggled light.
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+
+    toggle.querySelector('use')?.setAttribute('href', dark ? '#i-sun' : '#i-moon');
+    // The icon carries no meaning for screen readers, so state lives here.
     toggle.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
     localStorage.setItem('theme', dark ? 'dark' : 'light');
 }
@@ -1173,7 +1283,7 @@ function exportCSV() {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    showStatus("✅ CSV exported successfully", "success");
+    showStatus("CSV exported successfully", "success");
 }
 
 function generateBatchPDFHTML(batch, timestamp) {
@@ -1271,7 +1381,7 @@ function exportPDF() {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    showStatus("✅ Report exported (open in browser and print as PDF)", "success");
+    showStatus("Report exported (open in browser and print as PDF)", "success");
 }
 
 function generatePDFHTML() {

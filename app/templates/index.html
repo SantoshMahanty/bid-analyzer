@@ -7,6 +7,124 @@
     <link rel="stylesheet" href="/static/styles.css?v={{ asset_v }}">
 </head>
 <body>
+    <!--
+      Icon sprite. Stroke-based 24x24 glyphs in the Lucide house style, defined
+      once and referenced with <use>. Replaces OS emoji, which rendered
+      differently per platform and never sat on the text baseline. Using a
+      sprite rather than inline paths keeps the markup readable and lets
+      app.js emit icons with the same one-line <use> reference.
+    -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <defs>
+            <g id="i-base" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+        </defs>
+        <symbol id="i-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12" y="8" width="3" height="10" rx="1"/><rect x="17" y="4" width="3" height="14" rx="1"/>
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+        </symbol>
+        <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 4h6a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2Z"/><path d="M22 4h-6a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22Z"/>
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>
+        </symbol>
+        <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5Z"/>
+        </symbol>
+        <symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7h6ZM19 7l-3 7h6Z"/>
+        </symbol>
+        <symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 2 9 5v10l-9 5-9-5V7Z"/><path d="m3 7 9 5 9-5M12 12v10"/>
+        </symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v13"/>
+        </symbol>
+        <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/>
+        </symbol>
+        <symbol id="i-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/>
+        </symbol>
+        <symbol id="i-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 21 12-12M14 4l1.5 3L19 8.5 15.5 10 14 13l-1.5-3L9 8.5 12.5 7ZM19 15l.8 1.7 1.7.8-1.7.8L19 20l-.8-1.7-1.7-.8 1.7-.8Z"/>
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 4.5v15l13-7.5Z"/>
+        </symbol>
+        <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+        </symbol>
+        <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 11l5 5 5-5M12 16V3"/>
+        </symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </symbol>
+        <symbol id="i-braces" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/>
+        </symbol>
+        <symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
+        </symbol>
+        <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>
+        </symbol>
+        <symbol id="i-printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/>
+        </symbol>
+        <symbol id="i-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+        </symbol>
+        <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6M10 21h4"/><path d="M12 2a6 6 0 0 0-3.5 10.9c.5.4.8 1 .9 1.6l.1.5h5l.1-.5c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 2Z"/>
+        </symbol>
+        <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+        </symbol>
+        <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="13" rx="2"/><path d="m7 2 5 5 5-5"/>
+        </symbol>
+        <symbol id="i-cap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 9 12 4 2 9l10 5Z"/><path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5M22 9v6"/>
+        </symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>
+        </symbol>
+        <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>
+        </symbol>
+        <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/>
+        </symbol>
+        <symbol id="i-fail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>
+        </symbol>
+        <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>
+        </symbol>
+        <symbol id="i-ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>
+        </symbol>
+        <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+        </symbol>
+        <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v6"/>
+        </symbol>
+    </svg>
+
     <!-- Animated Background -->
     <div class="animated-bg"></div>
 
@@ -15,13 +133,17 @@
         <header class="header">
             <div class="header-main">
                 <div class="header-left">
-                    <span class="logo-icon">📊</span>
+                    <span class="logo-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-logo"/></svg></span>
                     <h1 class="header-title">Bid Analyzer</h1>
                     <p class="header-subtitle">OpenRTB Inspector</p>
                 </div>
                 <div class="header-right">
-                    <button class="header-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Toggle dark mode">🌙</button>
-                    <a href="/tutorial" class="header-link">📖 Tutorial</a>
+                    <button class="header-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Toggle dark mode">
+                        <svg class="icon" aria-hidden="true"><use href="#i-moon" id="theme-icon"/></svg>
+                    </button>
+                    <a href="/tutorial" class="header-link">
+                        <svg class="icon" aria-hidden="true"><use href="#i-book"/></svg> Tutorial
+                    </a>
                 </div>
             </div>
         </header>
@@ -33,19 +155,19 @@
                 <span class="selector-label">Mode</span>
                 <div class="selector-options">
                     <button class="mode-option active" data-mode="request" title="Analyze bid request">
-                        <span class="mode-icon">🔍</span>
+                        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
                         <span class="mode-name">Request</span>
                     </button>
                     <button class="mode-option" data-mode="response" title="Analyze bid response">
-                        <span class="mode-icon">📨</span>
+                        <svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg>
                         <span class="mode-name">Response</span>
                     </button>
                     <button class="mode-option" data-mode="compare" title="Compare request vs response">
-                        <span class="mode-icon">⚖️</span>
+                        <svg class="icon" aria-hidden="true"><use href="#i-scale"/></svg>
                         <span class="mode-name">Compare</span>
                     </button>
                     <button class="mode-option" data-mode="batch" title="Analyze many payloads at once">
-                        <span class="mode-icon">📦</span>
+                        <svg class="icon" aria-hidden="true"><use href="#i-package"/></svg>
                         <span class="mode-name">Batch</span>
                     </button>
                 </div>
@@ -56,28 +178,37 @@
                 <!-- Input Section -->
                 <div class="section input-section">
                     <div class="section-header">
-                        <h2>📤 Input Data</h2>
+                        <h2><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Input Data</h2>
                     </div>
 
                     <!-- Request Mode -->
                     <div class="mode-content active" id="input-request">
-                        <!-- Input Method Tabs -->
                         <div class="input-method-tabs">
-                            <button class="input-method-tab active" data-method="paste" data-mode="request">📝 Paste</button>
-                            <button class="input-method-tab" data-method="upload" data-mode="request">📁 Upload</button>
-                            <button class="input-method-tab" data-method="url" data-mode="request">🌐 URL</button>
-                            <button class="input-method-tab" data-method="samples" data-mode="request">📋 Samples</button>
+                            <button class="input-method-tab active" data-method="paste" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-braces"/></svg> Paste</button>
+                            <button class="input-method-tab" data-method="upload" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                            <button class="input-method-tab" data-method="url" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> URL</button>
+                            <button class="input-method-tab" data-method="samples" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Samples</button>
                         </div>
 
                         <!-- Paste -->
                         <div class="input-method-content active" id="method-paste-request">
                             <div class="input-container">
-                                <div class="input-header">
-                                    <label class="input-label">Bid Request JSON</label>
-                                    <button class="btn btn-small" onclick="prettifyJSON('request-raw')">✨ Prettify</button>
+                                <!-- Unified editor toolbar: all editor actions in one row above
+                                     the code, instead of scattered across the card. -->
+                                <div class="editor-toolbar">
+                                    <label class="input-label" for="request-raw">Bid Request JSON</label>
+                                    <div class="editor-actions">
+                                        <button class="btn btn-small" type="button" onclick="prettifyJSON('request-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
+                                        <button class="btn btn-small" type="button" onclick="copyEditor('request-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                        <button class="btn btn-small" type="button" onclick="loadFirstSample('request')" title="Load a sample payload"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Sample</button>
+                                        <button class="btn btn-small" type="button" onclick="clearEditor('request-raw')" title="Clear this editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                    </div>
                                 </div>
-                                <textarea id="request-raw" class="code-input" placeholder='{"id":"req-1","imp":[...]}'></textarea>
-                                <div class="input-hint">💡 Press Ctrl+Enter to analyze</div>
+                                <div class="editor-shell">
+                                    <div class="editor-gutter" aria-hidden="true"></div>
+                                    <textarea id="request-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","imp":[...]}'></textarea>
+                                </div>
+                                <div class="input-hint">Press Ctrl+Enter to analyze</div>
                             </div>
                         </div>
 
@@ -85,7 +216,7 @@
                         <div class="input-method-content" id="method-upload-request">
                             <div class="dropzone" id="dropzone-request">
                                 <div class="dropzone-content">
-                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-icon"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-upload"/></svg></div>
                                     <div class="dropzone-text">Drop JSON file here or click to browse</div>
                                     <div class="dropzone-hint">Accepts .json, .txt, .log files</div>
                                 </div>
@@ -96,10 +227,10 @@
                         <!-- URL -->
                         <div class="input-method-content" id="method-url-request">
                             <div class="input-container">
-                                <label class="input-label">Fetch from URL</label>
+                                <label class="input-label" for="request-url">Fetch from URL</label>
                                 <div class="url-input-group">
                                     <input id="request-url" type="url" class="select-input" placeholder="https://api.example.com/request.json">
-                                    <button class="btn btn-primary" onclick="fetchURL('request')">🌐 Fetch</button>
+                                    <button class="btn btn-primary" type="button" onclick="fetchURL('request')"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> Fetch</button>
                                 </div>
                             </div>
                         </div>
@@ -112,23 +243,30 @@
 
                     <!-- Response Mode -->
                     <div class="mode-content" id="input-response" style="display:none;">
-                        <!-- Input Method Tabs -->
                         <div class="input-method-tabs">
-                            <button class="input-method-tab active" data-method="paste" data-mode="response">📝 Paste</button>
-                            <button class="input-method-tab" data-method="upload" data-mode="response">📁 Upload</button>
-                            <button class="input-method-tab" data-method="url" data-mode="response">🌐 URL</button>
-                            <button class="input-method-tab" data-method="samples" data-mode="response">📋 Samples</button>
+                            <button class="input-method-tab active" data-method="paste" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-braces"/></svg> Paste</button>
+                            <button class="input-method-tab" data-method="upload" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                            <button class="input-method-tab" data-method="url" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> URL</button>
+                            <button class="input-method-tab" data-method="samples" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Samples</button>
                         </div>
 
                         <!-- Paste -->
                         <div class="input-method-content active" id="method-paste-response">
                             <div class="input-container">
-                                <div class="input-header">
-                                    <label class="input-label">Bid Response JSON</label>
-                                    <button class="btn btn-small" onclick="prettifyJSON('response-raw')">✨ Prettify</button>
+                                <div class="editor-toolbar">
+                                    <label class="input-label" for="response-raw">Bid Response JSON</label>
+                                    <div class="editor-actions">
+                                        <button class="btn btn-small" type="button" onclick="prettifyJSON('response-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
+                                        <button class="btn btn-small" type="button" onclick="copyEditor('response-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                        <button class="btn btn-small" type="button" onclick="loadFirstSample('response')" title="Load a sample payload"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Sample</button>
+                                        <button class="btn btn-small" type="button" onclick="clearEditor('response-raw')" title="Clear this editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                    </div>
                                 </div>
-                                <textarea id="response-raw" class="code-input" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
-                                <div class="input-hint">💡 Press Ctrl+Enter to analyze</div>
+                                <div class="editor-shell">
+                                    <div class="editor-gutter" aria-hidden="true"></div>
+                                    <textarea id="response-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
+                                </div>
+                                <div class="input-hint">Press Ctrl+Enter to analyze</div>
                             </div>
                         </div>
 
@@ -136,7 +274,7 @@
                         <div class="input-method-content" id="method-upload-response">
                             <div class="dropzone" id="dropzone-response">
                                 <div class="dropzone-content">
-                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-icon"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-upload"/></svg></div>
                                     <div class="dropzone-text">Drop JSON file here or click to browse</div>
                                     <div class="dropzone-hint">Accepts .json, .txt, .log files</div>
                                 </div>
@@ -147,10 +285,10 @@
                         <!-- URL -->
                         <div class="input-method-content" id="method-url-response">
                             <div class="input-container">
-                                <label class="input-label">Fetch from URL</label>
+                                <label class="input-label" for="response-url">Fetch from URL</label>
                                 <div class="url-input-group">
                                     <input id="response-url" type="url" class="select-input" placeholder="https://api.example.com/response.json">
-                                    <button class="btn btn-primary" onclick="fetchURL('response')">🌐 Fetch</button>
+                                    <button class="btn btn-primary" type="button" onclick="fetchURL('response')"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> Fetch</button>
                                 </div>
                             </div>
                         </div>
@@ -165,18 +303,24 @@
                     <div class="mode-content" id="input-compare" style="display:none;">
                         <div class="compare-grid">
                             <div class="compare-card">
-                                <h3>📋 Request</h3>
-                                <textarea id="compare-request-raw" class="code-input" placeholder='Request JSON...'></textarea>
-                                <button class="btn btn-secondary" onclick="document.getElementById('compare-request-file').click()">
-                                    📁 Upload
+                                <h3><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg> Request</h3>
+                                <div class="editor-shell">
+                                    <div class="editor-gutter" aria-hidden="true"></div>
+                                    <textarea id="compare-request-raw" class="code-input" spellcheck="false" placeholder='Request JSON...'></textarea>
+                                </div>
+                                <button class="btn btn-secondary" type="button" onclick="document.getElementById('compare-request-file').click()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload
                                 </button>
                                 <input id="compare-request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
                             <div class="compare-card">
-                                <h3>📨 Response</h3>
-                                <textarea id="compare-response-raw" class="code-input" placeholder='Response JSON...'></textarea>
-                                <button class="btn btn-secondary" onclick="document.getElementById('compare-response-file').click()">
-                                    📁 Upload
+                                <h3><svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg> Response</h3>
+                                <div class="editor-shell">
+                                    <div class="editor-gutter" aria-hidden="true"></div>
+                                    <textarea id="compare-response-raw" class="code-input" spellcheck="false" placeholder='Response JSON...'></textarea>
+                                </div>
+                                <button class="btn btn-secondary" type="button" onclick="document.getElementById('compare-response-file').click()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload
                                 </button>
                                 <input id="compare-response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
@@ -186,9 +330,7 @@
                     <!-- Batch Mode -->
                     <div class="mode-content" id="input-batch" style="display:none;">
                         <div class="input-container">
-                            <div class="input-header">
-                                <label class="input-label" for="batch-mode">Treat every entry as</label>
-                            </div>
+                            <label class="input-label" for="batch-mode">Treat every entry as</label>
                             <select id="batch-mode" class="select-input">
                                 <option value="auto">Auto-detect per entry</option>
                                 <option value="request">Bid request</option>
@@ -196,13 +338,20 @@
                             </select>
                         </div>
                         <div class="input-container">
-                            <div class="input-header">
-                                <label class="input-label" for="batch-raw">Payloads — JSON array or one JSON object per line (JSONL)</label>
-                                <button class="btn btn-small" onclick="document.getElementById('batch-file').click()">📁 Upload</button>
+                            <div class="editor-toolbar">
+                                <label class="input-label" for="batch-raw">Payloads — JSON array or one object per line</label>
+                                <div class="editor-actions">
+                                    <button class="btn btn-small" type="button" onclick="copyEditor('batch-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                    <button class="btn btn-small" type="button" onclick="document.getElementById('batch-file').click()" title="Upload a log file"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                                    <button class="btn btn-small" type="button" onclick="clearEditor('batch-raw')" title="Clear this editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                </div>
                             </div>
-                            <textarea id="batch-raw" class="code-input" placeholder='{"id":"req-1","imp":[...]}
+                            <div class="editor-shell">
+                                <div class="editor-gutter" aria-hidden="true"></div>
+                                <textarea id="batch-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","imp":[...]}
 {"id":"req-2","imp":[...]}'></textarea>
-                            <div class="input-hint">💡 Paste an exported log. Accepts a JSON array, newline-delimited JSON, or a single object.</div>
+                            </div>
+                            <div class="input-hint">Paste an exported log. Accepts a JSON array, newline-delimited JSON, or a single object.</div>
                             <input id="batch-file" type="file" style="display:none;" accept=".json,.jsonl,.ndjson,.txt,.log">
                         </div>
                     </div>
@@ -210,10 +359,10 @@
                     <!-- Main Action Buttons -->
                     <div class="button-group">
                         <button id="analyze-btn" class="btn btn-primary btn-large">
-                            ▶️ Analyze Now
+                            <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg> Analyze Now
                         </button>
-                        <button class="btn btn-ghost" onclick="clearInputs()">
-                            ✕ Clear
+                        <button class="btn btn-ghost" type="button" onclick="clearInputs()">
+                            <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear
                         </button>
                     </div>
                 </div>
@@ -221,52 +370,46 @@
                 <!-- Results Section -->
                 <div class="section results-section">
                     <div class="section-header results-header">
-                        <h2>📊 Results</h2>
+                        <h2><svg class="icon" aria-hidden="true"><use href="#i-layout"/></svg> Results</h2>
                         <div class="export-menu" id="export-group" hidden>
                             <button class="btn btn-secondary" id="export-trigger" type="button"
                                     aria-haspopup="true" aria-expanded="false" aria-controls="export-menu-list">
-                                📥 Export <span aria-hidden="true">▾</span>
+                                <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg> Export
                             </button>
                             <div class="export-menu-list" id="export-menu-list" role="menu"
                                  aria-labelledby="export-trigger" hidden>
-                                <button class="export-menu-item" role="menuitem" type="button" onclick="copyResults()">📋 Copy to clipboard</button>
-                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportJSON()">📄 JSON data</button>
-                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportCSV()">📊 CSV table</button>
-                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportHTML()">💾 HTML dump</button>
-                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportPDF()">📑 Printable report</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="copyResults()"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy to clipboard</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportJSON()"><svg class="icon" aria-hidden="true"><use href="#i-braces"/></svg> JSON data</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportCSV()"><svg class="icon" aria-hidden="true"><use href="#i-table"/></svg> CSV table</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportHTML()"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg> HTML dump</button>
+                                <button class="export-menu-item" role="menuitem" type="button" onclick="exportPDF()"><svg class="icon" aria-hidden="true"><use href="#i-printer"/></svg> Printable report</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Placeholder -->
                     <div id="results-placeholder" class="results-placeholder">
-                        <div class="placeholder-icon">✨</div>
+                        <div class="placeholder-icon"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-target"/></svg></div>
                         <p>Paste or upload data above and click Analyze</p>
                     </div>
 
                     <!-- Results Content -->
                     <div id="results-content" class="results-content" style="display:none;">
-                        <div class="tab-groups">
-                            <div class="tab-group">
-                                <span class="tab-group-label">Analysis</span>
-                                <div class="results-tabs" role="tablist" aria-label="Analysis results">
-                                    <button class="tab-button active" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true">📊 Overview</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-human" aria-controls="tab-human" aria-selected="false" tabindex="-1">💡 Insights</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-request" aria-controls="tab-request" aria-selected="false" tabindex="-1">📋 Request</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-response" aria-controls="tab-response" aria-selected="false" tabindex="-1">📨 Response</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-compare" aria-controls="tab-compare" aria-selected="false" tabindex="-1">⚖️ Compare</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-batch" aria-controls="tab-batch" aria-selected="false" tabindex="-1">📦 Batch</button>
-                                </div>
-                            </div>
-                            <div class="tab-group">
-                                <span class="tab-group-label">Reference</span>
-                                <div class="results-tabs" role="tablist" aria-label="Reference and diagnostics">
-                                    <button class="tab-button" role="tab" id="tabbtn-signals" aria-controls="tab-signals" aria-selected="false" tabindex="-1">📺 Signals</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-interview" aria-controls="tab-interview" aria-selected="false" tabindex="-1">🎓 Cheatsheet</button>
-                                    <button class="tab-button" role="tab" id="tabbtn-warnings" aria-controls="tab-warnings" aria-selected="false" tabindex="-1">⚠️ Warnings<span class="tab-badge" id="warnings-badge" hidden></span></button>
-                                    <button class="tab-button" role="tab" id="tabbtn-raw" aria-controls="tab-raw" aria-selected="false" tabindex="-1">📄 Raw</button>
-                                </div>
-                            </div>
+                        <!-- Single scrollable tab row. Two stacked rows split one
+                             mental model in half and still overflowed once Batch
+                             was added; one row with horizontal scroll keeps a
+                             single tablist and correct arrow-key traversal. -->
+                        <div class="results-tabs" role="tablist" aria-label="Analysis results">
+                            <button class="tab-button active" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true"><svg class="icon" aria-hidden="true"><use href="#i-layout"/></svg> Overview</button>
+                            <button class="tab-button" role="tab" id="tabbtn-human" aria-controls="tab-human" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-bulb"/></svg> Insights<span class="tab-badge neutral" id="insights-badge" hidden></span></button>
+                            <button class="tab-button" role="tab" id="tabbtn-request" aria-controls="tab-request" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg> Request</button>
+                            <button class="tab-button" role="tab" id="tabbtn-response" aria-controls="tab-response" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg> Response</button>
+                            <button class="tab-button" role="tab" id="tabbtn-compare" aria-controls="tab-compare" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-scale"/></svg> Compare<span class="tab-badge" id="compare-badge" hidden></span></button>
+                            <button class="tab-button" role="tab" id="tabbtn-batch" aria-controls="tab-batch" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-package"/></svg> Batch<span class="tab-badge neutral" id="batch-badge" hidden></span></button>
+                            <button class="tab-button" role="tab" id="tabbtn-signals" aria-controls="tab-signals" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-tv"/></svg> Signals<span class="tab-badge neutral" id="signals-badge" hidden></span></button>
+                            <button class="tab-button" role="tab" id="tabbtn-interview" aria-controls="tab-interview" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-cap"/></svg> Cheatsheet</button>
+                            <button class="tab-button" role="tab" id="tabbtn-warnings" aria-controls="tab-warnings" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg> Warnings<span class="tab-badge" id="warnings-badge" hidden></span></button>
+                            <button class="tab-button" role="tab" id="tabbtn-raw" aria-controls="tab-raw" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-code"/></svg> Raw</button>
                         </div>
 
                         <div class="tab-panels">

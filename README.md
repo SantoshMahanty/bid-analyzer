@@ -580,17 +580,41 @@ The fix was to introduce a token layer in [styles.css](app/static/styles.css) �
 
 1. **An explicit `html[data-theme="light"]` block is mandatory.** With only a `prefers-color-scheme` media query and a `[data-theme="dark"]` block, a user whose OS is dark who toggles to light gets light surfaces with near-white text — the toggle half-works. The light block must restate the whole palette, not just the new tokens.
 2. **Translucent status backgrounds (`rgba(…, 0.12)`) work in both themes**, because they tint whatever surface they sit on rather than replacing it. Solid pastels do not.
-3. **Brand colours are often not accessible as text.** `--primary` (`#6366f1`) as a label sits at 3.64:1 on the dark surface — under the 4.5:1 AA threshold. A separate `--kv-key` token (`#4338ca` light, `#a5b4fc` dark) keeps the indigo identity at 7.6:1 and 8.0:1.
+3. **Brand colours are often not accessible as text.** `--primary` (`#6366f1`) as a label sits at 3.64:1 on the dark surface — under the 4.5:1 AA threshold. The same colour as active-tab text measured 2.95:1. A separate `--kv-key` token (`#4338ca` light, `#a5b4fc` dark) keeps the indigo identity at 7.6:1 and 8.0:1, and is now used for both. `--success` and `--error` had the same problem as status text, so `.json-status` uses the text-weight `--pass-fg` / `--fail-fg` instead.
 
-Verified by walking every text node in the result panels, flattening translucent layers to compute the real effective background, and checking each against its WCAG AA threshold: **0 failures across 121 elements in both themes.**
+Verified by walking every text node, flattening translucent layers to compute the real effective background, and checking each against its WCAG AA threshold: **0 failures across the page chrome and all ten result panels, in both themes.**
+
+> **If you run this audit yourself, disable CSS transitions first.** `getComputedStyle` returns *interpolated* values mid-transition, so measuring right after a theme switch reports colours that never actually settle — it produced a batch of phantom failures (including an impossible 1.0:1) before the transitions were frozen. Gradient backgrounds also need excluding: `backgroundColor` is transparent on a gradient element, so a naive walk up the tree reports whatever solid ancestor it finds and invents failures that are not real.
+
+### Icons
+
+The UI used OS emoji throughout. They render differently on Windows, macOS and Linux, and they sit off the text baseline, which reads as unpolished in a developer tool. They are now a **sprite of stroke-based SVG symbols** defined once at the top of [index.html](app/templates/index.html) and referenced with `<use href="#i-name">`.
+
+Two properties make this worth the swap, and neither is available to an emoji:
+
+- `width: 1em` — the icon scales with its button's font size automatically.
+- `color: currentColor` — the icon inherits hover, active and theme colours for free.
+
+`app.js` emits the same references through an `icon(name)` helper, so generated results and static chrome share one icon set. Emoji deliberately remain in two places: the exported HTML and printable reports (standalone files that cannot reach the page's sprite) and [tutorial.html](app/templates/tutorial.html), which was out of scope.
+
+### The code editor
+
+A plain `<textarea>` gives no sense of where a syntax error is. It now sits inside an `.editor-shell` alongside a **line-number gutter**, with the failing line highlighted when JSON parsing fails.
+
+It is still a real `<textarea>` rather than a contenteditable rewrite — that keeps native undo, IME input, spellcheck control and screen-reader behaviour that a custom editor would have to reimplement. The gutter is a sibling element kept in sync on `input` and `scroll`.
+
+The one detail that matters if you build this yourself: **the gutter and the textarea must agree exactly on font family, font size, line height and vertical padding**, or the numbers drift out of alignment further down a long payload. Both read from shared custom properties on `.editor-shell` for exactly that reason.
 
 ### Other UI details worth reading the code for
 
-- **Export menu**: one trigger rather than five buttons, implemented as a real ARIA menu — Escape and click-outside close it, arrow keys walk the items, and focus returns to the trigger so keyboard users are not stranded. Offers Copy, JSON, CSV, HTML, and a printable report (generated as styled HTML — no PDF library needed)
+- **Editor toolbar**: Format, Copy, Sample and Clear in one row above the code, rather than split between the label corner and the bottom of the card
+- **Export menu**: one trigger rather than five buttons, implemented as a real ARIA menu — Escape and click-outside close it, arrow keys walk the items, and focus returns to the trigger so keyboard users are not stranded
 - **Sticky Analyze bar**: the action row used to sit below the textarea, so analysing a 200-line payload meant scrolling to the bottom first
-- **Warning-count badge** on the Warnings tab, switching to the failure tone when errors are present, with an `aria-label` carrying the same information
+- **Count badges** on the Insights, Signals, Compare, Batch and Warnings tabs, so a tab's weight is visible without opening it. The Warnings badge switches to the failure tone when errors are present, with an `aria-label` carrying the same information
+- **One tab row**: the tabs were previously two labelled groups (`ANALYSIS` and `REFERENCE`), which split one mental model in half. They are now a single `role="tablist"` — so arrow keys traverse all ten — that **wraps** rather than scrolls. Ten labelled tabs cannot fit the ~520px results column, and a horizontal scrollbar hides tabs behind an affordance people miss
 - **Theme toggle**: light/dark, persisted in `localStorage`
 - **Keyboard shortcut**: `Ctrl+Enter` analyzes from anywhere
+- **Reduced motion**: hover transforms and the animated background are disabled under `prefers-reduced-motion`
 - **Cache busting**: [web.py](app/routes/web.py) computes `asset_version()` from the newest static-file modification time and appends it as `?v=...` to the CSS and JS tags. Without this, browsers happily serve a stale `app.js` and your changes appear not to work — a genuinely maddening bug this project already hit once (commit `c88f0ef`).
 
 ---
