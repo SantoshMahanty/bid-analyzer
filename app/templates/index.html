@@ -44,6 +44,10 @@
                         <span class="mode-icon">⚖️</span>
                         <span class="mode-name">Compare</span>
                     </button>
+                    <button class="mode-option" data-mode="batch" title="Analyze many payloads at once">
+                        <span class="mode-icon">📦</span>
+                        <span class="mode-name">Batch</span>
+                    </button>
                 </div>
             </div>
 
@@ -179,6 +183,30 @@
                         </div>
                     </div>
 
+                    <!-- Batch Mode -->
+                    <div class="mode-content" id="input-batch" style="display:none;">
+                        <div class="input-container">
+                            <div class="input-header">
+                                <label class="input-label" for="batch-mode">Treat every entry as</label>
+                            </div>
+                            <select id="batch-mode" class="select-input">
+                                <option value="auto">Auto-detect per entry</option>
+                                <option value="request">Bid request</option>
+                                <option value="response">Bid response</option>
+                            </select>
+                        </div>
+                        <div class="input-container">
+                            <div class="input-header">
+                                <label class="input-label" for="batch-raw">Payloads — JSON array or one JSON object per line (JSONL)</label>
+                                <button class="btn btn-small" onclick="document.getElementById('batch-file').click()">📁 Upload</button>
+                            </div>
+                            <textarea id="batch-raw" class="code-input" placeholder='{"id":"req-1","imp":[...]}
+{"id":"req-2","imp":[...]}'></textarea>
+                            <div class="input-hint">💡 Paste an exported log. Accepts a JSON array, newline-delimited JSON, or a single object.</div>
+                            <input id="batch-file" type="file" style="display:none;" accept=".json,.jsonl,.ndjson,.txt,.log">
+                        </div>
+                    </div>
+
                     <!-- Main Action Buttons -->
                     <div class="button-group">
                         <button id="analyze-btn" class="btn btn-primary btn-large">
@@ -220,6 +248,7 @@
                                     <button class="tab-button" role="tab" id="tabbtn-request" aria-controls="tab-request" aria-selected="false" tabindex="-1">📋 Request</button>
                                     <button class="tab-button" role="tab" id="tabbtn-response" aria-controls="tab-response" aria-selected="false" tabindex="-1">📨 Response</button>
                                     <button class="tab-button" role="tab" id="tabbtn-compare" aria-controls="tab-compare" aria-selected="false" tabindex="-1">⚖️ Compare</button>
+                                    <button class="tab-button" role="tab" id="tabbtn-batch" aria-controls="tab-batch" aria-selected="false" tabindex="-1">📦 Batch</button>
                                 </div>
                             </div>
                             <div class="tab-group">
@@ -239,6 +268,7 @@
                             <div class="tab-panel" id="tab-request" role="tabpanel" aria-labelledby="tabbtn-request" tabindex="0"></div>
                             <div class="tab-panel" id="tab-response" role="tabpanel" aria-labelledby="tabbtn-response" tabindex="0"></div>
                             <div class="tab-panel" id="tab-compare" role="tabpanel" aria-labelledby="tabbtn-compare" tabindex="0"></div>
+                            <div class="tab-panel" id="tab-batch" role="tabpanel" aria-labelledby="tabbtn-batch" tabindex="0"></div>
                             <div class="tab-panel" id="tab-signals" role="tabpanel" aria-labelledby="tabbtn-signals" tabindex="0"></div>
                             <div class="tab-panel" id="tab-interview" role="tabpanel" aria-labelledby="tabbtn-interview" tabindex="0"></div>
                             <div class="tab-panel" id="tab-warnings" role="tabpanel" aria-labelledby="tabbtn-warnings" tabindex="0"></div>

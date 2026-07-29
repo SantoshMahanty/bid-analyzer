@@ -267,7 +267,8 @@ bid analyzer/
 │   │   ├── rules_engine.py        # OpenRTB lookup tables (enum code → human label)
 │   │   ├── explanation_engine.py  # Turns findings into plain-English sentences
 │   │   ├── comparison_engine.py   # Cross-checks a request against its response
-│   │   ├── url_fetcher.py         # Downloads JSON from a public URL
+│   │   ├── batch_processor.py     # Splits and analyzes many payloads at once
+│   │   ├── url_fetcher.py         # Downloads JSON from a public URL (SSRF-guarded)
 │   │   └── helpers.py             # Small shared utilities (safe get, type coercion)
 │   │
 │   ├── static/
@@ -492,6 +493,20 @@ It builds a lookup of every impression in the request keyed by `imp.id`, then wa
 | **Duration compliance** | `dur` is not in `rqddurs`, or is outside `minduration`/`maxduration` |
 | **CPM-per-second floor** | `price ÷ dur` is below `mincpmpersec` (a CTV-specific pricing rule) |
 | Video/audio completeness | Request wants video but the bid has no duration or markup |
+| **Advertiser blocklist** (`badv`) | The bid's `adomain` is on the request's blocked-advertiser list |
+| **Category blocklist** (`bcat`) | The bid's `cat` is on the request's blocked-category list |
+| **App blocklist** (`bapp`) | The promoted `bundle` is blocked by the request |
+| **Seat eligibility** (`wseat` / `bseat`) | The bidding seat is outside the allowlist or on the blocklist |
+| **Creative attributes** (`battr`) | The bid's `attr` includes an attribute the impression blocks |
+
+### Blocklist matching rules
+
+These four are the most common causes of a bid being discarded before the auction even runs, and each has a matching subtlety worth knowing:
+
+- **`badv` matches subdomains.** Blocking `ford.com` also blocks `ads.ford.com`, but *not* `notford.com` — the suffix match requires the dot, so lookalike domains do not false-positive.
+- **`bcat` is hierarchical.** Blocking `IAB25` also blocks `IAB25-3`, but not `IAB250`.
+- **Matching is case-insensitive**, while messages echo the payload's original casing so you can find the field again.
+- **A missing field produces a WARNING, not a PASS.** If the request declares `badv` but the bid has no `adomain`, the bid cannot be screened — that is a real problem, and silently passing it would hide it.
 
 Running the two CTV samples through it produces:
 
@@ -521,6 +536,15 @@ Everything lives on one page, driven by [app.js](app/static/app.js). There is no
 | 🔍 **Request** | `POST /analyze/request` |
 | 📨 **Response** | `POST /analyze/response` |
 | ⚖️ **Compare** | both of the above, then `POST /analyze/compare` |
+| 📦 **Batch** | `POST /analyze/batch` |
+
+### Batch mode
+
+Paste or upload a whole log instead of one payload. It accepts a **JSON array**, **newline-delimited JSON** (one object per line, the format ad-server logs emit), or a single object, and it auto-detects request vs response per entry — or you can force one kind.
+
+The Overview tab then shows aggregates across the batch: how many entries were valid, the distribution of ad formats, environments, CTV likelihood, versions and deal types, floor min/avg/max, and **warnings ranked by how often they occur**. That last one is the point of batch mode — it turns "this request has a warning" into "37% of your inventory is missing geo."
+
+The Batch tab lists every entry in a table, and CSV export writes one row per entry. Unparseable JSONL lines are reported by line number and skipped rather than failing the whole batch; entries beyond 1,000 are skipped with an explicit notice rather than silently dropped.
 
 ### Four ways to get data in
 
@@ -533,7 +557,8 @@ Everything lives on one page, driven by [app.js](app/static/app.js). There is no
 
 | Tab | Contents |
 |---|---|
-| 📊 Overview | KPI cards — impressions, format, environment, floor range, validity |
+| 📊 Overview | KPI cards — impressions, format, environment, floor range, validity (batch aggregates in Batch mode) |
+| 📦 Batch | Per-entry table for a batch run |
 | 💡 Insights | The plain-English, field-by-field explanations |
 | 📋 Request | Structured breakdown of every parsed request object |
 | 📨 Response | Seats, bids, prices, creative metadata |
@@ -562,6 +587,7 @@ The backend is a normal REST API, so you can use it without the UI at all. FastA
 |---|---|---|---|
 | `POST` | `/analyze/request` | form: `raw_text` \| `file` \| `source_url` | `AnalysisResult` |
 | `POST` | `/analyze/response` | form: `raw_text` \| `file` \| `source_url` | `AnalysisResult` |
+| `POST` | `/analyze/batch` | form: `raw_text` \| `file` \| `source_url`, plus `mode` | batch report |
 | `POST` | `/analyze/compare` | JSON: `{request_payload, response_payload}` | comparison report |
 | `POST` | `/fetch/url` | JSON: `{url}` | raw fetched text |
 | `GET` | `/samples` | — | all bundled samples |
@@ -643,16 +669,20 @@ python -m pytest app/tests -q
 Expected output:
 
 ```
-......                                                                   [100%]
-6 passed in 1.19s
+..................................................... [100%]
+53 passed, 19 subtests passed in 3.46s
 ```
 
-Two suites:
+Four suites:
 
 - **[test_openrtb_2_6.py](app/tests/test_openrtb_2_6.py)** — spec-conformance tests. Does the analyzer catch a video object that mixes `rqddurs` with `maxduration`? Does it flag deprecated `bid.api`? Does it validate `device.sua` structure?
 - **[test_robustness.py](app/tests/test_robustness.py)** — hostile-input tests. It feeds deliberately broken payloads (`"video": "not-an-object"`, `"device": "not-an-object"`, a bid array containing a bare string) and asserts that the analyzer produces warnings instead of raising `AttributeError`.
+- **[test_blocklists.py](app/tests/test_blocklists.py)** — the `badv`/`bcat`/`bapp`/`wseat`/`battr` cross-checks, including the near-miss cases that must *not* fire (`notford.com` against a `ford.com` block, `IAB250` against an `IAB25` block).
+- **[test_security.py](app/tests/test_security.py)** — the SSRF address filter against twelve internal-address forms, the URL fetcher's refusal of localhost by name and by IP, and the upload size cap.
 
-That second suite is the more instructive one. Parsing data from other companies means you will *definitely* receive malformed input, and a validation tool that crashes on bad data is useless precisely when you need it most.
+The robustness suite is the most instructive one. Parsing data from other companies means you will *definitely* receive malformed input, and a validation tool that crashes on bad data is useless precisely when you need it most. The blocklist suite is a close second: most of its tests exist to prove a check does *not* fire, which is where matching logic usually goes wrong.
+
+There is also **[test_batch.py](app/tests/test_batch.py)** covering the array/JSONL/single-object splitter, per-entry skipping, aggregate distributions, and the 1,000-entry cap.
 
 ---
 
@@ -692,22 +722,32 @@ Being clear about what a tool does *not* do is part of good documentation.
 ### Functional limitations
 
 - **Heuristics, not certainty.** CTV scoring and version inference are educated guesses from circumstantial evidence. The app always shows its reasoning so you can override it.
-- **First object only.** Given a JSON array, only the first object is analyzed. There is no batch mode yet.
+- **Single modes analyze the first object only.** Given a JSON array in Request/Response/Compare mode, only the first object is used. Use **Batch mode** for the whole set.
+- **Batch is capped at 1,000 entries** per run. Beyond that it analyzes the first 1,000 and says so.
 - **No exchange-specific knowledge.** Every SSP has its own `ext` conventions; the analyzer only reads standard OpenRTB fields.
 - **2.5/2.6 focused.** OpenRTB 3.0 (a fundamentally different structure) is not supported.
 - **Nothing is persisted.** Close the tab and the analysis is gone. Use the export buttons to keep results.
 
 ### Security notes
 
-This app is designed to run **locally, on `127.0.0.1`, for a single trusted user**. Under that assumption it is fine. Please read the following before exposing it to anything else.
+This app is designed to run **locally, on `127.0.0.1`, for a single trusted user**. Under that assumption it is fine.
 
-1. **The URL fetcher is server-side request forgery (SSRF)-capable.** [url_fetcher.py](app/services/url_fetcher.py) accepts any `http`/`https` URL and follows redirects, with no blocklist for private address ranges. Anyone who can reach the UI can make **your machine** issue requests to `http://127.0.0.1:...`, `http://192.168.x.x`, or a cloud metadata endpoint, and read the response body back through the analyzer. On localhost this is a non-issue; the moment the app is bound to `0.0.0.0` or deployed, it becomes a real vulnerability. Mitigation is to resolve the hostname and reject private, loopback, and link-local addresses before fetching, and to disable redirect following.
-2. **No authentication, no rate limiting, no CSRF protection.** There is no login and no origin checking on the POST endpoints. That is acceptable for a local tool and unacceptable for a shared one.
-3. **CORS is not configured**, which is the correct default — but note that means adding a permissive `CORSMiddleware` later would combine badly with points 1 and 2.
-4. **Fetch size is capped at 2 MB** (`MAX_FETCH_BYTES`) with an 8-second timeout, so the URL feature cannot easily be used to exhaust memory. Uploaded files are **not** size-capped — FastAPI reads them fully into memory.
-5. **Bid requests contain personal data** — IP addresses, device IDs, geolocation, sometimes user IDs. Real production payloads may fall under GDPR/CCPA. Prefer the bundled samples or anonymised data when learning, and do not paste live traffic into any hosted tool.
+### What is protected
 
-**Bottom line:** run it with the default `--host 127.0.0.1`. Do not put it on a shared network or the public internet without addressing points 1 and 2 first.
+1. **SSRF filtering on the URL fetcher.** [url_fetcher.py](app/services/url_fetcher.py) resolves the hostname before connecting and refuses any host that resolves to a private, loopback, link-local, reserved, multicast, or unspecified address — including IPv4-mapped and 6to4-wrapped forms of those, which are the usual bypass tricks. That covers `127.0.0.1`, `10/8`, `172.16/12`, `192.168/16`, `::1`, `fc00::/7`, and the cloud metadata endpoint at `169.254.169.254`. Redirects are followed **manually**, capped at 3 hops, with every hop re-checked — auto-following would let a public host bounce the fetch straight into the private network the filter exists to protect.
+2. **Upload size cap.** Uploads are read in 64 KB chunks and rejected past 5 MB (`MAX_UPLOAD_BYTES`), so an oversized file is refused without ever being fully held in memory.
+3. **Fetch size cap** of 2 MB (`MAX_FETCH_BYTES`) with an 8-second timeout.
+4. **Batch cap** of 1,000 entries per run.
+5. **Output escaping.** Batch and comparison results are payload-derived text, so everything interpolated into the DOM or into an exported HTML report is HTML-escaped, and CSV cells are RFC 4180 quoted.
+
+### Residual risks
+
+1. **DNS rebinding is not fully mitigated.** The address check happens at resolve time; a hostile DNS server could in principle return a public address for the check and a private one for the connection. Closing this properly means pinning the validated IP for the connection and passing the original `Host` header. It is not worth the complexity for a localhost tool, but it is the honest limitation of the current approach.
+2. **No authentication, no rate limiting, no CSRF protection.** There is no login and no origin checking on the POST endpoints. Acceptable for a local tool, not for a shared one.
+3. **CORS is not configured**, which is the correct default — adding a permissive `CORSMiddleware` later would combine badly with point 2.
+4. **Bid requests contain personal data** — IP addresses, device IDs, geolocation, sometimes user IDs. Real production payloads may fall under GDPR/CCPA. Prefer the bundled samples or anonymised data when learning, and do not paste live traffic into any hosted tool.
+
+**Bottom line:** run it with the default `--host 127.0.0.1`. The SSRF hole is closed, but authentication and rate limiting would still be needed before putting this on a shared network.
 
 ---
 
@@ -723,17 +763,18 @@ Roughly ordered from beginner to advanced:
 
 **Intermediate**
 
-4. **Batch mode.** Accept a JSON array or newline-delimited JSON log and analyze every entry, with a summary table across all of them.
-5. **A CLI.** Import `analyze_input` in a `click` or `argparse` script so the analyzer works in a terminal pipeline. The services layer already makes this straightforward.
-6. **Fix the SSRF.** Implement the private-address blocklist from section 15 and write tests proving `http://127.0.0.1:8000/health` and `http://169.254.169.254/` are both rejected.
+4. ~~**Batch mode.**~~ Done — see [section 10](#10-the-user-interface-tab-by-tab).
+5. **A CLI.** Import `analyze_input` or `analyze_entries` in a `click` or `argparse` script so the analyzer works in a terminal pipeline. The services layer already makes this straightforward.
+6. ~~**Fix the SSRF.**~~ Done — see [section 15](#15-limitations-and-security-notes).
 7. **Analysis history.** Persist recent analyses to SQLite and add a "recent" panel.
+8. **Batch comparison.** Pair requests to responses by auction id across two logs and run the comparison engine over every pair, so you get a "why did we lose" report for a whole day of traffic.
 
 **Advanced**
 
-8. **Exchange adapters.** Pluggable modules that understand vendor-specific `ext` fields (Magnite, PubMatic, Index Exchange).
-9. **VAST inspection.** When `bid.adm` contains VAST XML, parse it and validate the media files, tracking events, and wrapper chain.
+9. **VAST inspection.** When `bid.adm` contains VAST XML, parse it and validate the media files, MIME types, bitrates, tracking events, and wrapper chain against the request's constraints. The highest-value item left for anyone working in CTV.
 10. **Diff mode.** Compare two bid requests side by side and highlight what changed — invaluable for debugging "it worked yesterday."
-11. **OpenRTB 3.0 support.** A genuinely different object model (layered `AdCOM`); implementing it teaches you both specs properly.
+11. **Exchange adapters.** Pluggable modules that understand vendor-specific `ext` fields (Magnite, PubMatic, Index Exchange). High maintenance for narrow payoff.
+12. **OpenRTB 3.0 support.** A genuinely different object model (layered `AdCOM`). Near-zero production adoption today, so treat this as a learning exercise rather than a practical need.
 
 ---
 

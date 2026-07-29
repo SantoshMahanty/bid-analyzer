@@ -39,6 +39,9 @@ function bindEvents() {
     document.getElementById("compare-response-file").addEventListener("change", (e) => {
         handleFileUpload(e, "compare-response");
     });
+    document.getElementById("batch-file").addEventListener("change", (e) => {
+        handleFileUpload(e, "batch");
+    });
 }
 
 function switchMode(mode) {
@@ -165,6 +168,23 @@ async function analyzeAll() {
             const formData = new FormData();
             formData.append("raw_text", rawText);
             report.response = await postForm("/analyze/response", formData);
+        }
+        else if (state.currentMode === "batch") {
+            const rawText = document.getElementById("batch-raw").value.trim();
+            if (!rawText) {
+                showStatus("Paste or upload a batch of payloads", "error");
+                return;
+            }
+            const formData = new FormData();
+            formData.append("raw_text", rawText);
+            formData.append("mode", document.getElementById("batch-mode").value);
+            const batch = await postForm("/analyze/batch", formData);
+
+            state.report = { batch };
+            displayBatchResults(batch);
+            const analyzed = batch.aggregates?.entries_analyzed || 0;
+            showStatus(analyzed ? `Analyzed ${analyzed} entries` : "Nothing could be analyzed", analyzed ? "success" : "error");
+            return;
         }
         else if (state.currentMode === "compare") {
             const reqText = document.getElementById("compare-request-raw").value.trim();
@@ -428,61 +448,71 @@ function displayResults(report) {
         document.getElementById("tab-response").innerHTML = html;
     }
 
-    // Phase 3: Enhanced Compare Matrix with Visual Grid
+    /* Compare matrix. The backend returns {overall_status, checks[], summary};
+       each check is {status: PASS|WARNING|FAIL, label, message}. */
     if (report.comparison) {
+        const checks = report.comparison.checks || [];
+        const summary = report.comparison.summary || {};
+        const overall = report.comparison.overall_status || "UNKNOWN";
+
+        const tone = {
+            PASS: { bg: "#d1fae5", border: "#10b981", text: "#065f46", icon: "✅" },
+            WARNING: { bg: "#fef3c7", border: "#f59e0b", text: "#78350f", icon: "⚠️" },
+            FAIL: { bg: "#fee2e2", border: "#ef4444", text: "#7f1d1d", icon: "❌" }
+        };
+        const overallColor = { PASS: "#10b981", WARNING: "#f59e0b", FAIL: "#ef4444" }[overall] || "#667eea";
+
+        const passed = checks.filter(c => c.status === "PASS").length;
+        const warned = checks.filter(c => c.status === "WARNING").length;
+        const failed = checks.filter(c => c.status === "FAIL").length;
+
         let html = `<div style='display: grid; gap: 1rem;'>
-            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;'>
-                <h3 style='margin: 0 0 0.5rem 0;'>⚖️ Request vs Response Verification</h3>
-                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${report.comparison.comparison_findings?.length || 0} findings analyzed</p>
+            <div style='background: ${overallColor}; color: white; padding: 1.5rem; border-radius: 12px;'>
+                <h3 style='margin: 0 0 0.5rem 0;'>⚖️ Request vs Response — ${esc(overall)}</h3>
+                <p style='margin: 0; opacity: 0.9; font-size: 0.9rem;'>${checks.length} check${checks.length !== 1 ? "s" : ""} run across ${summary.request_impression_count ?? 0} impression(s) and ${summary.response_bid_count ?? 0} bid(s)</p>
             </div>
 
-            <div style='display: grid; gap: 0.75rem;'>`;
+            <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
+                <div style='background: #d1fae5; border-left: 4px solid #10b981; padding: 1rem; border-radius: 8px;'>
+                    <div style='font-size: 1.5rem; font-weight: 700; color: #047857;'>${passed}</div>
+                    <div style='font-size: 0.85rem; color: #065f46;'>✓ Passed</div>
+                </div>
+                <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 8px;'>
+                    <div style='font-size: 1.5rem; font-weight: 700; color: #92400e;'>${warned}</div>
+                    <div style='font-size: 0.85rem; color: #78350f;'>⚠️ Warnings</div>
+                </div>
+                <div style='background: #fee2e2; border-left: 4px solid #ef4444; padding: 1rem; border-radius: 8px;'>
+                    <div style='font-size: 1.5rem; font-weight: 700; color: #991b1b;'>${failed}</div>
+                    <div style='font-size: 0.85rem; color: #7f1d1d;'>❌ Failures</div>
+                </div>
+            </div>`;
 
-        const findings = report.comparison.comparison_findings || [];
-        const matched = findings.filter(f => f.includes('✓')).length;
-        const warnings = findings.filter(f => f.includes('⚠')).length;
-        const failed = findings.filter(f => f.includes('❌')).length;
+        const blocked = (summary.blocklist_violations || 0) + (summary.seat_violations || 0);
+        if (blocked || summary.below_floor_bids || summary.deal_mismatches || (summary.unmatched_impids || []).length) {
+            const chips = [];
+            if (summary.below_floor_bids) chips.push(`${summary.below_floor_bids} bid(s) below floor`);
+            if (summary.deal_mismatches) chips.push(`${summary.deal_mismatches} deal mismatch(es)`);
+            if (summary.blocklist_violations) chips.push(`${summary.blocklist_violations} blocklist violation(s)`);
+            if (summary.seat_violations) chips.push(`${summary.seat_violations} seat violation(s)`);
+            if ((summary.unmatched_impids || []).length) chips.push(`${summary.unmatched_impids.length} unmatched impid(s)`);
+            html += `<div style='padding: 1rem 1.25rem; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 8px; color: #7f1d1d;'>
+                <strong>Why this bid may be discarded:</strong> ${chips.map(esc).join(" • ")}
+            </div>`;
+        }
 
-        // Summary Stats
-        html += `<div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
-            <div style='background: #d1fae5; border-left: 4px solid #10b981; padding: 1rem; border-radius: 8px;'>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #047857;'>${matched}</div>
-                <div style='font-size: 0.85rem; color: #065f46;'>✓ Matched</div>
-            </div>
-            <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 8px;'>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #92400e;'>${warnings}</div>
-                <div style='font-size: 0.85rem; color: #78350f;'>⚠️ Warnings</div>
-            </div>
-            <div style='background: #fee2e2; border-left: 4px solid #ef4444; padding: 1rem; border-radius: 8px;'>
-                <div style='font-size: 1.5rem; font-weight: 700; color: #991b1b;'>${failed}</div>
-                <div style='font-size: 0.85rem; color: #7f1d1d;'>❌ Errors</div>
-            </div>
-        </div>`;
-
-        // Detailed Findings
-        for (const finding of findings) {
-            let bgColor, borderColor, textColor, icon;
-            if (finding.includes('✓')) {
-                bgColor = '#d1fae5';
-                borderColor = '#10b981';
-                textColor = '#065f46';
-                icon = '✅';
-            } else if (finding.includes('⚠')) {
-                bgColor = '#fef3c7';
-                borderColor = '#f59e0b';
-                textColor = '#78350f';
-                icon = '⚠️';
-            } else {
-                bgColor = '#fee2e2';
-                borderColor = '#ef4444';
-                textColor = '#7f1d1d';
-                icon = '❌';
-            }
-
-            html += `<div style='padding: 1.25rem; background: ${bgColor}; border-left: 4px solid ${borderColor}; border-radius: 8px; color: ${textColor};'>
+        html += "<div style='display: grid; gap: 0.75rem;'>";
+        if (!checks.length) {
+            html += `<div style='padding: 1.25rem; opacity: 0.7;'>No comparable fields were found in these two payloads.</div>`;
+        }
+        for (const check of checks) {
+            const t = tone[check.status] || tone.WARNING;
+            html += `<div style='padding: 1.25rem; background: ${t.bg}; border-left: 4px solid ${t.border}; border-radius: 8px; color: ${t.text};'>
                 <div style='display: flex; gap: 0.75rem; align-items: flex-start;'>
-                    <span style='font-size: 1.25rem;'>${icon}</span>
-                    <div style='flex: 1;'>${finding}</div>
+                    <span style='font-size: 1.25rem;'>${t.icon}</span>
+                    <div style='flex: 1;'>
+                        <div style='font-weight: 600; margin-bottom: 0.25rem;'>${esc(check.label)}</div>
+                        <div>${esc(check.message)}</div>
+                    </div>
                 </div>
             </div>`;
         }
@@ -541,6 +571,180 @@ function displayResults(report) {
 
     // Raw JSON Tree
     document.getElementById("tab-raw").innerHTML = `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${JSON.stringify(report, null, 2)}</pre>`;
+}
+
+/* Batch payloads come from log files, so their ids and warning strings are
+   untrusted text. Escape anything interpolated into batch markup. */
+function esc(value) {
+    if (value === null || value === undefined) return "";
+    return String(value).replace(/[&<>"']/g, c => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+}
+
+function kpiCard(label, value, tone) {
+    const colors = {
+        good: "#10b981", bad: "#ef4444", neutral: "#6366f1", warn: "#f59e0b"
+    };
+    return `<div style='background: var(--panel-bg, #fff); border: 1px solid var(--panel-border, #e5e7eb); border-left: 4px solid ${colors[tone] || colors.neutral}; padding: 1rem 1.25rem; border-radius: 10px;'>
+        <div style='font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin-bottom: 0.35rem;'>${esc(label)}</div>
+        <div style='font-size: 1.6rem; font-weight: 800;'>${esc(value)}</div>
+    </div>`;
+}
+
+function distributionBlock(title, distribution) {
+    if (!distribution || !Object.keys(distribution).length) return "";
+    const total = Object.values(distribution).reduce((a, b) => a + b, 0) || 1;
+    let html = `<div style='margin-bottom: 1.5rem;'>
+        <h4 style='margin: 0 0 0.75rem 0; font-size: 0.95rem;'>${esc(title)}</h4>`;
+    for (const [key, count] of Object.entries(distribution)) {
+        const pct = Math.round((count / total) * 100);
+        html += `<div style='margin-bottom: 0.5rem;'>
+            <div style='display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.2rem;'>
+                <span>${esc(key)}</span><span style='opacity: 0.7;'>${count} (${pct}%)</span>
+            </div>
+            <div style='background: rgba(127,127,127,0.18); border-radius: 6px; height: 8px; overflow: hidden;'>
+                <div style='background: linear-gradient(90deg, #667eea, #764ba2); width: ${pct}%; height: 100%;'></div>
+            </div>
+        </div>`;
+    }
+    return html + "</div>";
+}
+
+function displayBatchResults(report) {
+    document.getElementById("results-placeholder").style.display = "none";
+    document.getElementById("results-content").style.display = "block";
+    document.getElementById("export-group").hidden = false;
+
+    const agg = report.aggregates || {};
+    const rows = report.rows || [];
+
+    /* --- Overview: aggregate KPIs ------------------------------------- */
+    let overview = `<div style='display: grid; gap: 1.5rem;'>
+        <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+            ${kpiCard("Entries analyzed", agg.entries_analyzed ?? 0, "neutral")}
+            ${kpiCard("Valid", agg.valid_count ?? 0, "good")}
+            ${kpiCard("Invalid", agg.invalid_count ?? 0, (agg.invalid_count ? "bad" : "good"))}
+            ${kpiCard("Skipped", agg.entries_skipped ?? 0, (agg.entries_skipped ? "warn" : "neutral"))}
+            ${kpiCard("Requests", agg.request_count ?? 0, "neutral")}
+            ${kpiCard("Responses", agg.response_count ?? 0, "neutral")}
+            ${kpiCard("Total warnings", agg.total_warnings ?? 0, (agg.total_warnings ? "warn" : "good"))}
+            ${kpiCard("Total errors", agg.total_errors ?? 0, (agg.total_errors ? "bad" : "good"))}
+        </div>`;
+
+    const notes = (report.notes || []).concat(agg.notes || []);
+    if (notes.length) {
+        overview += `<div style='padding: 1rem 1.25rem; background: rgba(99,102,241,0.1); border-left: 4px solid #6366f1; border-radius: 8px; font-size: 0.9rem;'>
+            ${notes.map(n => `<div>• ${esc(n)}</div>`).join("")}
+        </div>`;
+    }
+
+    if ((report.line_errors || []).length) {
+        overview += `<div style='padding: 1rem 1.25rem; background: rgba(245,158,11,0.12); border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 0.9rem;'>
+            <strong>${report.line_errors.length} unparseable line(s) skipped</strong>
+            ${report.line_errors.slice(0, 10).map(e => `<div>• line ${e.line}: ${esc(e.error)}</div>`).join("")}
+        </div>`;
+    }
+
+    const rb = agg.request_breakdown;
+    if (rb) {
+        overview += `<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;'>
+            <div>${distributionBlock("Ad format", rb.ad_format)}${distributionBlock("Inventory source", rb.inventory_source)}</div>
+            <div>${distributionBlock("Environment", rb.environment)}${distributionBlock("CTV likelihood", rb.ctv_label)}</div>
+            <div>${distributionBlock("Version guess", rb.version_guess)}${distributionBlock("Deal type", rb.deal_type)}</div>
+        </div>`;
+        if (rb.bid_floor) {
+            overview += `<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+                ${kpiCard("Min floor", rb.bid_floor.min, "neutral")}
+                ${kpiCard("Avg floor", rb.bid_floor.avg, "neutral")}
+                ${kpiCard("Max floor", rb.bid_floor.max, "neutral")}
+            </div>`;
+        }
+    }
+
+    const sb = agg.response_breakdown;
+    if (sb) {
+        overview += distributionBlock("No-bid style", sb.no_bid_style);
+        if (sb.bid_price) {
+            overview += `<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+                ${kpiCard("Min price", sb.bid_price.min, "neutral")}
+                ${kpiCard("Avg price", sb.bid_price.avg, "neutral")}
+                ${kpiCard("Max price", sb.bid_price.max, "neutral")}
+            </div>`;
+        }
+    }
+
+    document.getElementById("tab-overview").innerHTML = overview + "</div>";
+
+    /* --- Batch tab: per-entry table ----------------------------------- */
+    let table = "";
+    if (!rows.length) {
+        table = "<p style='opacity: 0.7;'>No entries could be analyzed.</p>";
+    } else {
+        const isRequest = rows.some(r => r.kind === "request");
+        const headers = isRequest
+            ? ["#", "ID", "Imps", "Format", "Inventory", "Environment", "CTV", "Version", "Floor", "Warn", "Err"]
+            : ["#", "ID", "Seats", "Bids", "Min price", "Max price", "No-bid", "Creative", "Warn", "Err"];
+
+        table = `<div style='overflow-x: auto;'><table style='width: 100%; border-collapse: collapse; font-size: 0.85rem;'>
+            <thead><tr>${headers.map(h => `<th style='text-align: left; padding: 0.6rem; border-bottom: 2px solid rgba(127,127,127,0.3); white-space: nowrap;'>${esc(h)}</th>`).join("")}</tr></thead><tbody>`;
+
+        rows.forEach(r => {
+            const bad = r.error_count > 0;
+            const cells = r.kind === "request"
+                ? [r.index, r.id, r.impressions, r.ad_format, r.inventory_source, r.environment,
+                   `${r.ctv_score ?? "—"} (${r.ctv_label ?? "—"})`, r.version_guess,
+                   r.min_floor === null || r.min_floor === undefined ? "—" : r.min_floor,
+                   r.warning_count, r.error_count]
+                : [r.index, r.id, r.seat_count, r.bid_count,
+                   r.min_bid_price ?? "—", r.max_bid_price ?? "—",
+                   r.no_bid_reason ?? "—", r.creative_metadata, r.warning_count, r.error_count];
+
+            table += `<tr style='background: ${bad ? "rgba(239,68,68,0.08)" : "transparent"};'>` +
+                cells.map(c => `<td style='padding: 0.55rem 0.6rem; border-bottom: 1px solid rgba(127,127,127,0.15); white-space: nowrap;'>${esc(c)}</td>`).join("") +
+                "</tr>";
+        });
+        table += "</tbody></table></div>";
+    }
+
+    if ((report.skipped || []).length) {
+        table += `<div style='margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(245,158,11,0.12); border-left: 4px solid #f59e0b; border-radius: 8px; font-size: 0.9rem;'>
+            <strong>Skipped entries</strong>
+            ${report.skipped.slice(0, 20).map(s => `<div>• entry ${s.index}: ${esc(s.reason)}</div>`).join("")}
+        </div>`;
+    }
+    document.getElementById("tab-batch").innerHTML = table;
+
+    /* --- Warnings tab: ranked by frequency ---------------------------- */
+    const topErrors = agg.top_errors || [];
+    const topWarnings = agg.top_warnings || [];
+    let warnHtml = "";
+    if (!topErrors.length && !topWarnings.length) {
+        warnHtml = "<div style='padding: 2rem; text-align: center; opacity: 0.7;'>✅ No warnings or errors across the batch.</div>";
+    } else {
+        const section = (title, items, tone) => {
+            if (!items.length) return "";
+            const color = tone === "error" ? "#ef4444" : "#f59e0b";
+            return `<h4 style='margin: 1rem 0 0.75rem 0;'>${esc(title)}</h4>` + items.map(item =>
+                `<div style='display: flex; gap: 1rem; align-items: flex-start; padding: 0.85rem 1rem; margin-bottom: 0.5rem; border-left: 4px solid ${color}; background: rgba(127,127,127,0.07); border-radius: 6px;'>
+                    <span style='font-weight: 800; min-width: 3rem;'>${item.count}×</span>
+                    <span>${esc(item.message)}</span>
+                </div>`).join("");
+        };
+        warnHtml = section(`Most frequent errors (${agg.distinct_errors || 0} distinct)`, topErrors, "error") +
+                   section(`Most frequent warnings (${agg.distinct_warnings || 0} distinct)`, topWarnings, "warning");
+    }
+    document.getElementById("tab-warnings").innerHTML = warnHtml;
+
+    /* --- Tabs that carry no meaning for a batch ----------------------- */
+    const na = "<div style='padding: 2rem; text-align: center; opacity: 0.6;'>Not applicable in Batch mode. Use the Overview, Batch, and Warnings tabs.</div>";
+    ["tab-human", "tab-request", "tab-response", "tab-compare", "tab-signals", "tab-interview"]
+        .forEach(id => { document.getElementById(id).innerHTML = na; });
+
+    document.getElementById("tab-raw").innerHTML =
+        `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${esc(JSON.stringify(report, null, 2))}</pre>`;
+
+    activateTab(document.getElementById("tabbtn-overview"));
 }
 
 /* WAI-ARIA tab pattern: roving tabindex + aria-selected kept in sync so
@@ -617,7 +821,7 @@ function exportHTML() {
     <div class="container">
         <h1>Bid Analysis Report</h1>
         <p>Generated: ${new Date().toISOString()}</p>
-        <pre>${JSON.stringify(state.report, null, 2)}</pre>
+        <pre>${esc(JSON.stringify(state.report, null, 2))}</pre>
     </div>
 </body>
 </html>`;
@@ -875,6 +1079,18 @@ function applyTheme(theme) {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
 }
 
+/* Values here are payload-derived and routinely contain commas and quotes,
+   so every cell goes through RFC 4180 quoting. */
+function csvCell(value) {
+    if (value === null || value === undefined) return '';
+    const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function csvLine(values) {
+    return values.map(csvCell).join(',');
+}
+
 // Advanced Export Functions
 function exportCSV() {
     if (!state.report) {
@@ -885,31 +1101,33 @@ function exportCSV() {
     const report = state.report;
     const rows = [];
 
-    // Headers
-    rows.push(['Metric', 'Value'].join(','));
+    if (report.batch) {
+        // One line per analyzed entry — the shape you actually want in a sheet.
+        const batchRows = report.batch.rows || [];
+        if (!batchRows.length) {
+            showStatus("No batch entries to export", "error");
+            return;
+        }
+        const columns = Object.keys(batchRows[0]);
+        rows.push(csvLine(columns));
+        batchRows.forEach(row => rows.push(csvLine(columns.map(column => row[column]))));
+    } else {
+        rows.push(csvLine(['Metric', 'Value']));
 
-    // Request data
-    if (report.request?.summary) {
-        rows.push(['--- REQUEST DATA ---', ''].join(','));
-        Object.entries(report.request.summary).forEach(([k, v]) => {
-            rows.push([k, typeof v === 'object' ? JSON.stringify(v) : v].join(','));
-        });
-    }
+        if (report.request?.summary) {
+            rows.push(csvLine(['--- REQUEST DATA ---', '']));
+            Object.entries(report.request.summary).forEach(([k, v]) => rows.push(csvLine([k, v])));
+        }
 
-    // Response data
-    if (report.response?.summary) {
-        rows.push(['--- RESPONSE DATA ---', ''].join(','));
-        Object.entries(report.response.summary).forEach(([k, v]) => {
-            rows.push([k, typeof v === 'object' ? JSON.stringify(v) : v].join(','));
-        });
-    }
+        if (report.response?.summary) {
+            rows.push(csvLine(['--- RESPONSE DATA ---', '']));
+            Object.entries(report.response.summary).forEach(([k, v]) => rows.push(csvLine([k, v])));
+        }
 
-    // Insights
-    if (report.request?.human_explanations?.length) {
-        rows.push(['--- INSIGHTS ---', ''].join(','));
-        report.request.human_explanations.forEach((exp, i) => {
-            rows.push([`Insight ${i+1}`, exp].join(','));
-        });
+        if (report.request?.human_explanations?.length) {
+            rows.push(csvLine(['--- INSIGHTS ---', '']));
+            report.request.human_explanations.forEach((exp, i) => rows.push(csvLine([`Insight ${i + 1}`, exp])));
+        }
     }
 
     const csv = rows.join('\n');
@@ -923,6 +1141,84 @@ function exportCSV() {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
     showStatus("✅ CSV exported successfully", "success");
+}
+
+function generateBatchPDFHTML(batch, timestamp) {
+    const agg = batch.aggregates || {};
+    const rows = batch.rows || [];
+    const columns = rows.length ? Object.keys(rows[0]) : [];
+
+    const kpi = (label, value) =>
+        `<div class="kpi-card"><div class="kpi-label">${esc(label)}</div><div class="kpi-value">${esc(value)}</div></div>`;
+
+    const frequency = (title, items) => !items?.length ? "" : `
+        <div class="section">
+            <h2>${esc(title)}</h2>
+            ${items.map(i => `<div class="insight"><div class="insight-label">${i.count}× occurrences</div><div class="insight-text">${esc(i.message)}</div></div>`).join("")}
+        </div>`;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Batch Analysis Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1f2937; line-height: 1.6; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; }
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .meta { font-size: 0.9rem; opacity: 0.9; }
+        .section { margin-bottom: 2rem; page-break-inside: avoid; }
+        .section h2 { font-size: 1.5rem; color: #667eea; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e5e7eb; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .kpi-card { background: #f9fafb; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea; }
+        .kpi-label { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; }
+        .kpi-value { font-size: 1.4rem; font-weight: 700; margin-top: 0.35rem; }
+        .insight { background: #fffbeb; padding: 0.85rem 1rem; margin-bottom: 0.6rem; border-left: 4px solid #f59e0b; border-radius: 4px; }
+        .insight-label { color: #92400e; font-weight: 600; font-size: 0.85rem; }
+        .insight-text { margin-top: 0.35rem; font-size: 0.9rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+        th { background: #f3f4f6; border-bottom: 2px solid #d1d5db; }
+        @media print { body { background: white; } .container { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Batch Analysis Report</h1>
+            <div class="meta">Generated: ${esc(timestamp)} • Mode: ${esc(batch.mode || "auto")}</div>
+        </div>
+
+        <div class="section">
+            <h2>Summary</h2>
+            <div class="kpi-grid">
+                ${kpi("Entries analyzed", agg.entries_analyzed ?? 0)}
+                ${kpi("Valid", agg.valid_count ?? 0)}
+                ${kpi("Invalid", agg.invalid_count ?? 0)}
+                ${kpi("Skipped", agg.entries_skipped ?? 0)}
+                ${kpi("Requests", agg.request_count ?? 0)}
+                ${kpi("Responses", agg.response_count ?? 0)}
+                ${kpi("Total warnings", agg.total_warnings ?? 0)}
+                ${kpi("Total errors", agg.total_errors ?? 0)}
+            </div>
+        </div>
+
+        ${frequency("Most frequent errors", agg.top_errors)}
+        ${frequency("Most frequent warnings", agg.top_warnings)}
+
+        ${rows.length ? `
+        <div class="section">
+            <h2>Per-entry results</h2>
+            <table>
+                <thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+                <tbody>${rows.map(r => `<tr>${columns.map(c => `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+        </div>` : ""}
+    </div>
+</body>
+</html>`;
 }
 
 function exportPDF() {
@@ -948,6 +1244,8 @@ function exportPDF() {
 function generatePDFHTML() {
     const report = state.report;
     const timestamp = new Date().toLocaleString();
+
+    if (report.batch) return generateBatchPDFHTML(report.batch, timestamp);
 
     return `<!DOCTYPE html>
 <html>

@@ -2,12 +2,63 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from .helpers import coerce_float, ensure_list, first_dict_item, get_nested, has_value, unique_strings
+from .helpers import coerce_float, coerce_int, ensure_list, first_dict_item, get_nested, has_value, unique_strings
 
 
 def _status_rank(status: str) -> int:
     order = {"PASS": 0, "WARNING": 1, "FAIL": 2}
     return order.get(status, 1)
+
+
+def _norm_list(values: Any) -> List[str]:
+    return [str(value).strip().lower() for value in ensure_list(values) if has_value(value)]
+
+
+def _blocked_domains(adomains: Any, blocked: List[str]) -> List[str]:
+    """adomain entries caught by badv. 'ford.com' also blocks 'ads.ford.com'."""
+    hits: List[str] = []
+    for original in ensure_list(adomains):
+        if not has_value(original):
+            continue
+        domain = str(original).strip().lower()
+        if any(domain == entry or domain.endswith(f".{entry}") for entry in blocked):
+            hits.append(str(original))
+    return hits
+
+
+def _blocked_categories(categories: Any, blocked: List[str]) -> List[str]:
+    """IAB categories are hierarchical, so blocking IAB25 also blocks IAB25-3."""
+    hits: List[str] = []
+    for original in ensure_list(categories):
+        if not has_value(original):
+            continue
+        category = str(original).strip().lower()
+        if any(category == entry or category.startswith(f"{entry}-") for entry in blocked):
+            hits.append(str(original))
+    return hits
+
+
+def _blocked_attributes(attributes: Any, blocked: List[int]) -> List[int]:
+    blocked_set = set(blocked)
+    hits: List[int] = []
+    for attribute in ensure_list(attributes):
+        numeric = coerce_int(attribute)
+        if numeric is not None and numeric in blocked_set:
+            hits.append(numeric)
+    return hits
+
+
+def _imp_blocked_attrs(imp: Dict[str, Any]) -> List[int]:
+    """battr can sit on any media object, so gather them all for one imp."""
+    collected: List[int] = []
+    for media in ["banner", "video", "audio", "native"]:
+        media_object = imp.get(media)
+        if isinstance(media_object, dict):
+            for attribute in ensure_list(media_object.get("battr")):
+                numeric = coerce_int(attribute)
+                if numeric is not None:
+                    collected.append(numeric)
+    return sorted(set(collected))
 
 
 def _request_imp_map(request_payload: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -33,6 +84,7 @@ def _request_imp_map(request_payload: Dict[str, Any]) -> Dict[str, Dict[str, Any
             },
             "rqddurs": ensure_list(get_nested(imp, "video.rqddurs")) or ensure_list(get_nested(imp, "audio.rqddurs")),
             "mincpmpersec": coerce_float(get_nested(imp, "video.mincpmpersec")) or coerce_float(get_nested(imp, "audio.mincpmpersec")),
+            "battr": _imp_blocked_attrs(imp),
         }
     return result
 
@@ -65,18 +117,81 @@ def compare_request_and_response(request_payload: Dict[str, Any], response_paylo
     below_floor_bids = 0
     deal_mismatches = 0
 
-    all_bids = []
+    # Seat is carried alongside each bid so wseat/bseat can be checked per bid.
+    seat_bids: List[tuple[str, Dict[str, Any]]] = []
     for seatbid in ensure_list(response_payload.get("seatbid")):
         if isinstance(seatbid, dict):
+            seat = str(seatbid.get("seat")).strip() if has_value(seatbid.get("seat")) else ""
             for bid in ensure_list(seatbid.get("bid")):
                 if isinstance(bid, dict):
-                    all_bids.append(bid)
+                    seat_bids.append((seat, bid))
+    all_bids = [bid for _, bid in seat_bids]
 
     if not all_bids and has_value(response_payload.get("nbr")):
         checks.append({"status": "PASS", "label": "No-bid response", "message": "The response returned a no-bid reason instead of bids."})
 
-    for bid in all_bids:
+    # Request-level blocklists. A bid that trips one of these is discarded by the
+    # exchange before the auction, which is a common cause of silent bid loss.
+    blocked_advertisers = _norm_list(request_payload.get("badv"))
+    blocked_categories = _norm_list(request_payload.get("bcat"))
+    blocked_bundles = _norm_list(request_payload.get("bapp"))
+    allowed_seats = _norm_list(request_payload.get("wseat"))
+    denied_seats = _norm_list(request_payload.get("bseat"))
+    blocklist_violations = 0
+    seat_violations = 0
+
+    if allowed_seats and denied_seats:
+        checks.append({"status": "WARNING", "label": "Seat lists", "message": "Request declares both wseat and bseat. OpenRTB treats these as mutually exclusive."})
+
+    for seat, bid in seat_bids:
         impid = str(bid.get("impid")) if has_value(bid.get("impid")) else ""
+        bid_label = f"bid {bid.get('id')}" if has_value(bid.get("id")) else f"bid for imp {impid}" if impid else "bid"
+
+        # --- Seat eligibility -------------------------------------------------
+        if allowed_seats or denied_seats:
+            if not seat:
+                checks.append({"status": "WARNING", "label": f"Seat eligibility for {bid_label}", "message": "The request restricts seats, but the response seatbid has no seat value to check."})
+            elif allowed_seats and seat.lower() not in allowed_seats:
+                seat_violations += 1
+                checks.append({"status": "FAIL", "label": f"Seat eligibility for {bid_label}", "message": f"Seat '{seat}' is not in the request wseat allowlist {request_payload.get('wseat')}."})
+            elif denied_seats and seat.lower() in denied_seats:
+                seat_violations += 1
+                checks.append({"status": "FAIL", "label": f"Seat eligibility for {bid_label}", "message": f"Seat '{seat}' appears in the request bseat blocklist."})
+            else:
+                checks.append({"status": "PASS", "label": f"Seat eligibility for {bid_label}", "message": f"Seat '{seat}' is permitted by the request seat rules."})
+
+        # --- Advertiser domain blocklist (badv) -------------------------------
+        if blocked_advertisers:
+            if not has_value(bid.get("adomain")):
+                checks.append({"status": "WARNING", "label": f"Advertiser blocklist for {bid_label}", "message": "The request declares badv, but the bid has no adomain, so it cannot be screened."})
+            else:
+                hits = _blocked_domains(bid.get("adomain"), blocked_advertisers)
+                if hits:
+                    blocklist_violations += 1
+                    checks.append({"status": "FAIL", "label": f"Advertiser blocklist for {bid_label}", "message": f"adomain {hits} is blocked by the request badv list. This bid will be discarded."})
+                else:
+                    checks.append({"status": "PASS", "label": f"Advertiser blocklist for {bid_label}", "message": "No adomain entry matches the request badv list."})
+
+        # --- Category blocklist (bcat) ----------------------------------------
+        if blocked_categories:
+            if not has_value(bid.get("cat")):
+                checks.append({"status": "WARNING", "label": f"Category blocklist for {bid_label}", "message": "The request declares bcat, but the bid has no cat, so category screening is not possible."})
+            else:
+                hits = _blocked_categories(bid.get("cat"), blocked_categories)
+                if hits:
+                    blocklist_violations += 1
+                    checks.append({"status": "FAIL", "label": f"Category blocklist for {bid_label}", "message": f"Creative category {hits} is blocked by the request bcat list. This bid will be discarded."})
+                else:
+                    checks.append({"status": "PASS", "label": f"Category blocklist for {bid_label}", "message": "No creative category matches the request bcat list."})
+
+        # --- Blocked app bundles (bapp) ---------------------------------------
+        if blocked_bundles and has_value(bid.get("bundle")):
+            if str(bid["bundle"]).strip().lower() in blocked_bundles:
+                blocklist_violations += 1
+                checks.append({"status": "FAIL", "label": f"App blocklist for {bid_label}", "message": f"Promoted bundle '{bid['bundle']}' is blocked by the request bapp list."})
+            else:
+                checks.append({"status": "PASS", "label": f"App blocklist for {bid_label}", "message": "The promoted bundle is not on the request bapp list."})
+
         if impid and impid in request_imps:
             matched_impids.append(impid)
             request_imp = request_imps[impid]
@@ -151,6 +266,15 @@ def compare_request_and_response(request_payload: Dict[str, Any], response_paylo
                     checks.append({"status": "WARNING", "label": f"CPM per second floor for imp {impid}", "message": f"Bid CPM per second ({cpm_per_sec:.4f}) is below requested min CPM per second floor ({request_imp['mincpmpersec']:.4f})."})
                 else:
                     checks.append({"status": "PASS", "label": f"CPM per second floor for imp {impid}", "message": f"Bid CPM per second ({cpm_per_sec:.4f}) satisfies the floor ({request_imp['mincpmpersec']:.4f})."})
+
+            # Blocked creative attributes (battr) are declared per media object.
+            if request_imp["battr"] and has_value(bid.get("attr")):
+                attr_hits = _blocked_attributes(bid.get("attr"), request_imp["battr"])
+                if attr_hits:
+                    blocklist_violations += 1
+                    checks.append({"status": "FAIL", "label": f"Creative attributes for imp {impid}", "message": f"Creative attribute {attr_hits} is listed in the impression battr blocklist. This bid will be discarded."})
+                else:
+                    checks.append({"status": "PASS", "label": f"Creative attributes for imp {impid}", "message": "No creative attribute matches the impression battr blocklist."})
         else:
             if impid:
                 unmatched_impids.append(impid)
@@ -175,6 +299,8 @@ def compare_request_and_response(request_payload: Dict[str, Any], response_paylo
             "unmatched_impids": unique_strings(unmatched_impids),
             "below_floor_bids": below_floor_bids,
             "deal_mismatches": deal_mismatches,
+            "blocklist_violations": blocklist_violations,
+            "seat_violations": seat_violations,
             "request_impression_count": len(request_imps),
             "response_bid_count": len(all_bids),
         },

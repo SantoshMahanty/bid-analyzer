@@ -9,7 +9,7 @@ from app.models.schemas import NormalizedInput, ParseResult
 from .helpers import first_dict_item
 
 
-def _detect_payload_type(candidate: Dict[str, Any]) -> str:
+def detect_payload_type(candidate: Dict[str, Any]) -> str:
     if not isinstance(candidate, dict):
         return "unknown"
 
@@ -43,7 +43,7 @@ def parse_json_payload(normalized: NormalizedInput) -> ParseResult:
     metadata = normalized.input_source
     warnings = list(metadata.notes)
 
-    if metadata.parse_status in {"empty", "fetch_error"}:
+    if metadata.parse_status in {"empty", "fetch_error", "upload_too_large"}:
         return ParseResult(
             input_source=metadata,
             parse_status=metadata.parse_status,
@@ -67,7 +67,7 @@ def parse_json_payload(normalized: NormalizedInput) -> ParseResult:
 
     analysis_payload, analysis_warnings, top_level_type = _choose_analysis_payload(parsed_payload)
     warnings.extend(analysis_warnings)
-    detected_type = _detect_payload_type(analysis_payload or {})
+    detected_type = detect_payload_type(analysis_payload or {})
 
     if analysis_payload is None:
         return ParseResult(

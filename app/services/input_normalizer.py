@@ -10,6 +10,29 @@ from app.models.schemas import InputMetadata, NormalizedInput
 from .helpers import json_like_text
 from .url_fetcher import fetch_url_content
 
+# Upload ceiling. Read in chunks and stop at the limit so an oversized file is
+# rejected without ever being held in memory in full.
+MAX_UPLOAD_BYTES = 5_000_000
+_UPLOAD_CHUNK = 64 * 1024
+
+
+class UploadTooLarge(Exception):
+    """Raised when an uploaded file exceeds MAX_UPLOAD_BYTES."""
+
+
+async def _read_capped(upload_file: UploadFile) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await upload_file.read(_UPLOAD_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_UPLOAD_BYTES:
+            raise UploadTooLarge
+        chunks.append(chunk)
+    return b"".join(chunks)
+
 
 def _decode_bytes(content: bytes) -> tuple[str, list[str]]:
     notes = []
@@ -59,7 +82,19 @@ async def normalize_input(
         )
 
     if upload_file and upload_file.filename:
-        content = await upload_file.read()
+        try:
+            content = await _read_capped(upload_file)
+        except UploadTooLarge:
+            limit_mb = MAX_UPLOAD_BYTES / 1_000_000
+            metadata = InputMetadata(
+                source_type="file",
+                file_name=upload_file.filename,
+                parse_status="upload_too_large",
+                content_type=upload_file.content_type,
+                notes=notes + [f"The uploaded file is larger than the {limit_mb:g} MB limit and was rejected."],
+            )
+            return NormalizedInput(input_source=metadata)
+
         decoded_text, decode_notes = _decode_bytes(content)
         normalized_text = decoded_text.strip()
         metadata = InputMetadata(

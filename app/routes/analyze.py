@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, UploadFile
 
 from app.models.schemas import ComparisonRequest, UrlFetchRequest
+from app.services.batch_processor import analyze_batch_input
 from app.services.comparison_engine import compare_request_and_response
 from app.services.request_workflow import analyze_input
 from app.services.url_fetcher import fetch_url_content
@@ -33,6 +34,18 @@ async def analyze_response_endpoint(
 ):
     result = await analyze_input(mode="response", raw_text=raw_text, upload_file=file, source_url=source_url)
     return result.model_dump()
+
+
+@router.post("/analyze/batch")
+async def analyze_batch_endpoint(
+    raw_text: str = Form(default=""),
+    source_url: str = Form(default=""),
+    mode: str = Form(default="auto"),
+    file: UploadFile | None = File(default=None),
+):
+    if mode not in {"auto", "request", "response"}:
+        mode = "auto"
+    return await analyze_batch_input(mode=mode, raw_text=raw_text, upload_file=file, source_url=source_url)
 
 
 @router.post("/analyze/compare")
