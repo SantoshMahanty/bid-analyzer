@@ -226,7 +226,9 @@ function displayResults(report) {
     if (report.request) {
         const det = report.request.request_type_detection || {};
         const ctvScore = det.ctv_score || 0;
-        const ctvPercent = Math.min((ctvScore / 20) * 100, 100);
+        // Scale comes from the backend so the bar can actually reach 100%.
+        const ctvMax = det.ctv_score_max || 14;
+        const ctvPercent = Math.min((ctvScore / ctvMax) * 100, 100);
         overviewHtml += `
             <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
@@ -258,7 +260,7 @@ function displayResults(report) {
                 <div style='margin-top: 1.5rem;'>
                     <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
                         <span style='font-size: 0.9rem;'>🎯 CTV Confidence Score</span>
-                        <span style='font-size: 1rem; font-weight: 700;'>${ctvScore}/20</span>
+                        <span style='font-size: 1rem; font-weight: 700;'>${ctvScore}/${ctvMax}</span>
                     </div>
                     <div style='background: rgba(255,255,255,0.2); border-radius: 10px; height: 10px; overflow: hidden;'>
                         <div style='background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444); width: ${ctvPercent}%; height: 100%; transition: width 0.3s;'></div>
@@ -820,13 +822,19 @@ async function fetchURL(mode) {
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
+        // The endpoint reports failures in its body with ok:false, and returns
+        // the payload as `text` — not `content`.
         const data = await response.json();
-        if (data.content) {
-            document.getElementById(`${mode}-raw`).value = data.content;
-            showStatus("✅ Fetched successfully", "success");
-        } else {
-            showStatus("No content received", "error");
+        if (!data.ok) {
+            showStatus(`❌ ${data.error || "Fetch failed"}`, "error");
+            return;
         }
+
+        const target = document.getElementById(`${mode}-raw`);
+        target.value = data.text || "";
+        target.dispatchEvent(new Event("input"));   // run JSON validation
+        (data.notes || []).forEach(n => showStatus(`⚠️ ${n}`, "error"));
+        showStatus("✅ Fetched successfully", "success");
     } catch (err) {
         showStatus(`❌ Fetch failed: ${err.message}`, "error");
     }
@@ -991,7 +999,7 @@ function generatePDFHTML() {
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-label">CTV Score</div>
-                    <div class="kpi-value">${report.request.request_type_detection?.ctv_score || 0}/20</div>
+                    <div class="kpi-value">${report.request.request_type_detection?.ctv_score || 0}/${report.request.request_type_detection?.ctv_score_max || 14}</div>
                 </div>
             </div>
             ${report.request.human_explanations?.length ? `

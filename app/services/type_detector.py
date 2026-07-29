@@ -26,6 +26,11 @@ def _detect_ad_format(impressions: List[Dict[str, Any]]) -> str:
     return "mixed"
 
 
+# Sum of every signal weight in _ctv_score (2+2+3+3+2+2). Exposed so the UI
+# renders the score against the real scale instead of hardcoding one.
+CTV_SCORE_MAX = 14
+
+
 def _ctv_score(payload: Dict[str, Any], impressions: List[Dict[str, Any]]) -> Dict[str, Any]:
     score = 0
     reasons: List[str] = []
@@ -160,6 +165,7 @@ def detect_request_type(payload: Dict[str, Any]) -> Dict[str, Any]:
         "modern_fields_found": version["modern_fields_found"],
         "traffic_quality_notes": traffic_quality_notes,
         "ctv_score": ctv["score"],
+        "ctv_score_max": CTV_SCORE_MAX,
         "ctv_label": ctv["label"],
         "ctv_reasons": ctv["reasons"],
         "request_type_sentence": request_type_sentence,
