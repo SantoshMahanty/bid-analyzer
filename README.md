@@ -1,826 +1,486 @@
-# Bid Analyzer
+# 📊 Bid Analyzer — OpenRTB Inspector
 
-**A local web app that reads OpenRTB bid requests and bid responses and explains them in plain English.**
+> **A simple, beginner-friendly guide to understanding automated ad auctions, OpenRTB payloads, and the complete codebase of Bid Analyzer.**
 
-You paste a blob of advertising JSON into the browser, click **Analyze**, and the app tells you what kind of ad opportunity it is, whether the data is valid, what is missing, and — if you give it both sides — whether the bid actually answered the request correctly.
-
-Built with Python (FastAPI) on the backend and plain HTML/CSS/JavaScript on the frontend. No database, no cloud services, no API keys. It runs entirely on your own machine.
+Welcome! Whether you are a computer science student, a junior developer, or an ad tech professional, this documentation is written so you can easily understand **what this project does**, **why it exists**, **how the advertising auction system works**, and **every detail of the underlying Python & JavaScript code**.
 
 ---
 
-## Table of Contents
+## 📚 Table of Contents
 
-1. [The problem this solves](#1-the-problem-this-solves)
-2. [Background: what is OpenRTB?](#2-background-what-is-openrtb)
-3. [What the app actually does](#3-what-the-app-actually-does)
-4. [Tech stack (and why)](#4-tech-stack-and-why)
-5. [Getting started](#5-getting-started)
-6. [Project structure](#6-project-structure)
-7. [How the code works — the pipeline](#7-how-the-code-works--the-pipeline)
-8. [Inside the rules engine](#8-inside-the-rules-engine)
-9. [The comparison engine](#9-the-comparison-engine)
-10. [The user interface, tab by tab](#10-the-user-interface-tab-by-tab)
-11. [API reference](#11-api-reference)
-12. [Sample data](#12-sample-data)
-13. [Running the tests](#13-running-the-tests)
-14. [Glossary](#14-glossary)
-15. [Limitations and security notes](#15-limitations-and-security-notes)
-16. [Ideas for extending the project](#16-ideas-for-extending-the-project)
-
----
-
-## 1. The problem this solves
-
-Online display ads are bought and sold by computers, in auctions that finish in about 100 milliseconds. Every one of those auctions is a pair of JSON messages: a **bid request** ("here is an ad slot, who wants it?") and a **bid response** ("I do, here is my price and my ad").
-
-If you work in advertising technology, you spend a lot of time staring at those JSON blobs trying to answer questions like:
-
-- Is this a phone, a laptop, or a smart TV?
-- Why did my company's bid get rejected?
-- Is this a private deal or an open auction?
-- Which required fields did the publisher forget to send?
-
-Doing this by eye is slow and error-prone. A single CTV (smart-TV) bid request can be 300 lines of nested JSON, and the meaningful parts are scattered across a dozen objects.
-
-**Bid Analyzer automates the reading.** It is not a JSON prettifier — a prettifier just adds indentation. This app *understands* the fields: it knows that `device.devicetype = 3` means "connected TV", that `at = 1` means "first-price auction", and that a bid of `$18.00` against a floor of `$20.00` will be thrown away.
+1. [What is this project? (In simple terms)](#1-what-is-this-project-in-simple-terms)
+2. [Background: How Online Ad Auctions Work](#2-background-how-online-ad-auctions-work)
+3. [The Problem & The Solution](#3-the-problem--the-solution)
+4. [Tech Stack & Architecture Overview](#4-tech-stack--architecture-overview)
+5. [Step-by-Step Installation & Quick Start](#5-step-by-step-installation--quick-start)
+6. [Project Folder & File Structure](#6-project-folder--file-structure)
+7. [Deep-Dive into the Code (Module by Module)](#7-deep-dive-into-the-code-module-by-module)
+   - [7.1 HTTP Layer (`app/routes/`)](#71-http-layer-approutes)
+   - [7.2 Data Models (`app/models/schemas.py`)](#72-data-models-appmodelsschemaspy)
+   - [7.3 Services Layer (`app/services/`)](#73-services-layer-appservices)
+   - [7.4 Frontend UI (`app/static/` & `app/templates/`)](#74-frontend-ui-appstatic--apptemplates)
+8. [Inside the Analysis Engines](#8-inside-the-analysis-engines)
+   - [8.1 How CTV Scoring Works (The Math)](#81-how-ctv-scoring-works-the-math)
+   - [8.2 OpenRTB Version Detection](#82-openrtb-version-detection)
+   - [8.3 The Rules & Validation Engine](#83-the-rules--validation-engine)
+   - [8.4 The Comparison Engine (Matching Request vs Response)](#84-the-comparison-engine-matching-request-vs-response)
+9. [API Endpoint Reference](#9-api-endpoint-reference)
+10. [Automated Testing & Quality Assurance](#10-automated-testing--quality-assurance)
+11. [Glossary of Important Terms](#11-glossary-of-important-terms)
+12. [Security, Limitations & Future Enhancements](#12-security-limitations--future-enhancements)
 
 ---
 
-## 2. Background: what is OpenRTB?
+## 1. What is this project? (In simple terms)
 
-You do not need any advertising knowledge to run this project, but the code will make much more sense with ten minutes of context. (The app also ships with a built-in tutorial page at `/tutorial` that covers this in more depth.)
+Imagine you open a mobile app like Spotify or turn on a smart TV app like Roku. Before a video ad or banner appears on your screen, computers perform an auction in less than **100 milliseconds** (a tenth of a second!) to decide which ad to show you and how much the advertiser will pay.
 
-### 2.1 The players
+These auctions happen using structured messages formatted as **JSON** (JavaScript Object Notation):
+- **Bid Request**: *"Hey advertisers! I have a Smart TV in Chicago streaming a movie. Who wants to show a 30-second video ad? Minimum price is $15.00."*
+- **Bid Response**: *"I'll buy it for $18.50! Here is my video ad link."*
 
-| Player | Role | Everyday analogy |
+Normally, these JSON files are huge, highly nested, and full of numeric codes (`devicetype: 3`, `at: 1`, `nbr: 2`). Staring at raw JSON code makes it very hard to see what is happening.
+
+**Bid Analyzer is a web app that translates those JSON messages into plain English.** It tells you:
+- What device is being used (Phone, Laptop, Smart TV).
+- Whether the ad format is Banner, Video, Audio, or Native.
+- If there are any missing required fields or spec errors.
+- If a DSP's bid answered the request correctly (Did it bid high enough? Is the ad category blocked?).
+
+---
+
+## 2. Background: How Online Ad Auctions Work
+
+To understand this app, you only need to know 4 key players:
+
+### The 4 Key Players in Ad Tech
+
+| Player | Role | Everyday Analogy |
 |---|---|---|
-| **Publisher** | Owns the app/website/TV channel with ad space to sell | The shop with a window to rent |
-| **SSP / Exchange** | Runs the auction on the publisher's behalf | The auctioneer |
-| **DSP** | Bids on behalf of advertisers | The bidder in the room |
-| **Advertiser** | Wants their ad shown | The person who wants the window |
+| **Publisher** | The app/website with space for ads | A newspaper or shop window |
+| **SSP (Supply-Side Platform)** | Software that sells ad space for publishers | The auction house / auctioneer |
+| **DSP (Demand-Side Platform)** | Software that bids on behalf of advertisers | The bidder in the auction room |
+| **Advertiser** | The company that wants to show their ad (e.g., Nike, Coca-Cola) | The brand buying the window space |
 
-### 2.2 The 100-millisecond auction
+### The 100-Millisecond Lifecycle
 
-1. You open a mobile game. There is a blank ad slot on the screen.
-2. The publisher's SDK tells the **SSP**: "I have a slot."
-3. The SSP builds a **bid request** — a JSON document describing the slot, the device, the app, the user's country, the minimum price — and blasts it to dozens of **DSPs** at once.
-4. Each DSP has about 100 ms (the `tmax` field says exactly how long) to decide. It replies with a **bid response**: its price (`price`), the ad markup (`adm`), and which impression it is bidding on (`impid`).
-5. The SSP picks the winner, the ad renders, everybody logs the result.
-
-**OpenRTB** is the industry standard — published by the IAB Tech Lab — that defines the exact shape of those two JSON documents, so that hundreds of companies can talk to each other without custom integrations. This project targets OpenRTB **2.5 and 2.6**, the versions in real-world production use today.
-
-### 2.3 A minimal bid request
-
-```json
-{
-  "id": "req-ctv-001",
-  "at": 1,
-  "tmax": 120,
-  "cur": ["USD"],
-  "app": {
-    "name": "Living Room TV",
-    "bundle": "com.livingroomtv.app"
-  },
-  "device": {
-    "ua": "Roku/DVP-12.0",
-    "devicetype": 3
-  },
-  "imp": [
-    {
-      "id": "imp-ctv-1",
-      "bidfloor": 18.5,
-      "video": { "mimes": ["video/mp4"], "podid": "pod-a" }
-    }
-  ]
-}
+```
+[User opens app] ──► [Publisher SDK] ──► [SSP builds Bid Request JSON]
+                                                  │
+                                                  ▼ (Sent over HTTP POST)
+                                         [DSPs review request]
+                                                  │
+                                                  ▼ (Replies within tmax ~100ms)
+                                         [DSP builds Bid Response JSON]
+                                                  │
+                                                  ▼
+[Ad renders on user screen] ◄── [SSP picks winning highest bid]
 ```
 
-Reading it field by field: auction id `req-ctv-001`, first-price auction (`at: 1`), reply within 120 ms, priced in USD, the inventory is an **app** (not a website) called Living Room TV, running on a **Roku** device (`devicetype: 3` = connected TV), and there is **one impression** available, a **video** slot with a minimum price of **$18.50 CPM**, which belongs to an ad **pod** (a commercial break).
+### OpenRTB Standard
+**OpenRTB** is the industry standard specification published by the **IAB Tech Lab** so that any SSP can talk to any DSP using the exact same JSON format. This project supports **OpenRTB 2.5 and 2.6**.
 
-### 2.4 A minimal bid response
+---
 
-```json
-{
-  "id": "req-ctv-001",
-  "cur": "USD",
-  "seatbid": [
-    {
-      "seat": "dsp-seat-1",
-      "bid": [
-        {
-          "id": "bid-1",
-          "impid": "imp-ctv-1",
-          "price": 24.25,
-          "adomain": ["examplebrand.com"],
-          "dur": 30
-        }
-      ]
-    }
-  ]
-}
+## 3. The Problem & The Solution
+
+### The Problem
+Ad Tech engineers and ad operations teams spend hours manually inspecting JSON logs trying to answer:
+1. *"Why did our bid get rejected by the publisher?"*
+2. *"Is this traffic actually coming from a Connected TV (CTV) or a fake bot?"*
+3. *"Which required field did the exchange forget to send us?"*
+
+A simple JSON prettifier only adds indentation — it doesn't explain what numeric codes mean or validate industry rules.
+
+### The Solution
+**Bid Analyzer automates payload inspection.** It parses the JSON, applies real-world business logic, scores device types, detects version compatibility, cross-checks bid prices against floor prices, and explains every single field in human-readable language.
+
+---
+
+## 4. Tech Stack & Architecture Overview
+
+The app was designed with **zero unnecessary complexity**: no external database, no complex frameworks, no API key requirements, and no build tools.
+
+```
+       ┌──────────────────────────────────────────────────────────┐
+       │                   Browser UI (Frontend)                  │
+       │     HTML5 + CSS Variables + Vanilla JS (app.js)          │
+       └────────────────────────────┬─────────────────────────────┘
+                                    │ HTTP API Calls (Fetch API)
+                                    ▼
+       ┌──────────────────────────────────────────────────────────┐
+       │                   FastAPI Server (Backend)               │
+       │                   app/main.py & app/routes/              │
+       └────────────────────────────┬─────────────────────────────┘
+                                    │ Calls Python Functions
+                                    ▼
+       ┌──────────────────────────────────────────────────────────┐
+       │                     Services Layer                       │
+       │  • Normalizer  • Parser  • Type Detector  • Rules Engine  │
+       │  • Request Analyzer  • Response Analyzer  • Compare      │
+       └──────────────────────────────────────────────────────────┘
 ```
 
-The `id` echoes the request's id so the two can be matched. `impid` points at the specific impression being bid on. `price` is $24.25 CPM — comfortably above the $18.50 floor, so this bid is valid.
+### Technology Breakdown
 
-**Those two documents are exactly what this app takes as input.**
-
----
-
-## 3. What the app actually does
-
-Give it a **request** and it will:
-
-- Detect whether the inventory is an **app** or a **website**
-- Detect the **ad format** — banner, video, audio, native, or mixed
-- Score how likely this is **CTV** (smart-TV) traffic, on a 0–14 scale, and show the reasons
-- Read the **auction model** (first-price vs second-price) and the **deal path** (open auction, PMP, private auction)
-- Guess whether the payload looks **2.5-compatible** or **2.6-aligned**
-- Run ~40 validation checks and list **warnings** (bad practice) and **errors** (spec violations)
-- Write plain-English **explanations**, field by field
-- Produce a short **cheatsheet** you could use in an interview
-
-Give it a **response** and it will:
-
-- Count **seats** and **bids**, and report the price range
-- Detect **no-bid** responses and decode the no-bid reason code
-- Check every bid for required fields (`id`, `impid`, `price`, `adomain`, and render markup)
-- Validate **substitution macros** such as `${AUCTION_PRICE}` and flag legacy or malformed forms
-
-Give it **both** and it will additionally cross-check the two against each other — the most useful part of the tool, covered in [section 9](#9-the-comparison-engine).
-
-Everything can then be exported as **JSON, CSV, HTML, or PDF**, or copied to the clipboard.
+- **Backend**: Python 3.10+ with [FastAPI](https://fastapi.tiangolo.com/) for high-performance async routing and automatic OpenAPI documentation.
+- **Server**: [Uvicorn](https://www.uvicorn.org/) (ASGI web server).
+- **Data Validation**: [Pydantic v2](https://docs.pydantic.dev/) for data schema typing.
+- **Frontend**: Plain HTML, CSS custom properties (variables), and Vanilla JavaScript (`app.js`).
+- **Testing**: Python standard `unittest` framework executed via `pytest`.
 
 ---
 
-## 4. Tech stack (and why)
+## 5. Step-by-Step Installation & Quick Start
 
-| Layer | Choice | Why this choice |
-|---|---|---|
-| Web framework | **FastAPI** | Modern async Python framework. Gives automatic interactive API docs at `/docs` for free. |
-| Server | **Uvicorn** | The ASGI server that actually runs FastAPI. `--reload` restarts on file save. |
-| Data validation | **Pydantic** (via FastAPI) | Defines the response shapes in [schemas.py](app/models/schemas.py) as typed Python classes. |
-| Templating | **Jinja2** | Renders `index.html` server-side (used only to inject a cache-busting version string). |
-| HTTP client | **httpx** | Async HTTP client for the "fetch JSON from a URL" feature. |
-| Frontend | **Plain HTML + CSS + JavaScript** | No React, no build step, no `npm install`. Open the file, read the code, refresh the browser. |
-| Tests | **unittest** (run via pytest) | Standard library — nothing extra to learn. |
+### 1. Prerequisite
+Ensure you have **Python 3.10 or newer** installed:
+```bash
+python --version
+```
 
-The deliberate theme here is **no unnecessary machinery**. There is no database (nothing needs to persist), no authentication (it runs on `127.0.0.1`), and no frontend build pipeline. A student can read the entire codebase in an afternoon.
-
-**Requirements:** Python 3.10 or newer (developed on 3.13). The code uses `X | None` union syntax, which needs 3.10+.
-
----
-
-## 5. Getting started
-
-### 5.1 Clone and enter the project
-
+### 2. Navigate to Project Directory
 ```bash
 cd "path/to/bid analyzer"
 ```
 
-### 5.2 Create a virtual environment
+### 3. Create & Activate a Virtual Environment
+A virtual environment keeps project dependencies isolated.
 
-A virtual environment keeps this project's packages separate from the rest of your system.
+* **Windows (PowerShell)**:
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\Activate.ps1
+  ```
+* **macOS / Linux**:
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  ```
 
-**Windows (PowerShell):**
-
-```powershell
-python -m venv venv; .\venv\Scripts\Activate.ps1
-```
-
-**macOS / Linux:**
-
-```bash
-python3 -m venv venv && source venv/bin/activate
-```
-
-Your prompt should now start with `(venv)`.
-
-### 5.3 Install dependencies
-
+### 4. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-This installs FastAPI, Uvicorn, Jinja2, httpx, and python-multipart (needed for file uploads). It takes about 30 seconds.
-
-### 5.4 Run the server
-
+### 5. Run the Server
 ```bash
 python -m uvicorn app.main:app --reload
 ```
 
-Decoding that command: `app.main` is the file `app/main.py`, `:app` is the `app = FastAPI(...)` object inside it, and `--reload` makes the server restart automatically whenever you save a file.
-
-You should see:
-
-```
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-```
-
-> **Important:** run this command from the **project root**, not from inside `app/`. The code loads `app/static` and `app/templates` using paths relative to the working directory.
-
-### 5.5 Open it
-
-| URL | What it is |
-|---|---|
-| <http://127.0.0.1:8000> | The main analyzer UI |
-| <http://127.0.0.1:8000/tutorial> | Built-in OpenRTB 2.6 masterclass |
-| <http://127.0.0.1:8000/docs> | Auto-generated interactive API docs (FastAPI freebie) |
-| <http://127.0.0.1:8000/health> | Health check — returns `{"status":"ok"}` |
-
-### 5.6 Your first analysis (30 seconds)
-
-1. Leave the mode selector on **🔍 Request**.
-2. Click the **📋 Samples** tab and pick `sample_request_ctv.json`.
-3. Click **▶️ Analyze Now**.
-
-You should see a CTV score of **14 / 14**, the verdict *"likely CTV"*, and the one-line summary:
-
-> *This appears to be an app-based video request with strong CTV signals and pmp available access.*
-
-Now switch to **⚖️ Compare**, load `sample_request_ctv.json` on the left and `sample_response_ctv.json` on the right, and analyze again — you will get an overall **PASS** with six individual checks.
+### 6. Open in Browser
+Visit **`http://127.0.0.1:8000`** in your browser!
 
 ---
 
-## 6. Project structure
+## 6. Project Folder & File Structure
+
+Here is how the project files are organized:
 
 ```text
 bid analyzer/
 ├── app/
-│   ├── main.py                    # Entry point: creates the FastAPI app, wires up routes
+│   ├── main.py                     # Entry point: initializes FastAPI app & routes
 │   │
 │   ├── models/
-│   │   └── schemas.py             # Pydantic data classes — the "shape" of every result
+│   │   └── schemas.py              # Pydantic data models (defines response JSON shapes)
 │   │
-│   ├── routes/                    # The HTTP layer (URL → function)
-│   │   ├── analyze.py             # POST /analyze/*, POST /fetch/url, GET /samples, /health
-│   │   └── web.py                 # GET / and GET /tutorial (serve the HTML pages)
+│   ├── routes/                     # HTTP API endpoints
+│   │   ├── analyze.py              # POST /analyze/* API endpoints
+│   │   └── web.py                  # GET / and GET /tutorial web pages
 │   │
-│   ├── services/                  # The brain. All real logic lives here.
-│   │   ├── request_workflow.py    # Orchestrator: runs the whole pipeline in order
-│   │   ├── input_normalizer.py    # Step 1 — turn text/file/URL into a clean string
-│   │   ├── json_parser.py         # Step 2 — parse JSON, guess request vs response
-│   │   ├── request_analyzer.py    # Step 3a — analyze + validate a bid request
-│   │   ├── response_analyzer.py   # Step 3b — analyze + validate a bid response
-│   │   ├── type_detector.py       # CTV scoring, format/environment/deal detection
-│   │   ├── rules_engine.py        # OpenRTB lookup tables (enum code → human label)
-│   │   ├── explanation_engine.py  # Turns findings into plain-English sentences
-│   │   ├── comparison_engine.py   # Cross-checks a request against its response
-│   │   ├── batch_processor.py     # Splits and analyzes many payloads at once
-│   │   ├── url_fetcher.py         # Downloads JSON from a public URL (SSRF-guarded)
-│   │   └── helpers.py             # Small shared utilities (safe get, type coercion)
+│   ├── services/                   # Core business logic & engines
+│   │   ├── request_workflow.py     # Main coordinator function (analyze_input)
+│   │   ├── input_normalizer.py     # Cleans raw text, handles files, URLs, Gzip
+│   │   ├── json_parser.py          # Safely parses JSON & detects request vs response
+│   │   ├── type_detector.py        # Scores CTV likelihood & detects ad formats
+│   │   ├── rules_engine.py         # OpenRTB dictionary tables (enum code -> human text)
+│   │   ├── request_analyzer.py     # Inspects bid requests & validates spec rules
+│   │   ├── response_analyzer.py    # Inspects bid responses & checks macros
+│   │   ├── comparison_engine.py    # Matches request vs response (price, floor, blocklists)
+│   │   ├── batch_processor.py      # Analyzes arrays or multi-line JSON log payloads
+│   │   ├── explanation_engine.py   # Generates human-readable sentences for fields
+│   │   ├── url_fetcher.py          # Safely fetches JSON from external URLs (SSRF protected)
+│   │   └── helpers.py              # Safe dictionary access & type conversion utilities
 │   │
 │   ├── static/
-│   │   ├── app.js                 # All frontend behaviour (~1,050 lines)
-│   │   └── styles.css             # All styling, incl. light/dark themes (~875 lines)
+│   │   ├── app.js                  # Frontend UI logic (~1,300 lines of Vanilla JS)
+│   │   └── styles.css              # Design system styling & dark/light themes
 │   │
 │   ├── templates/
-│   │   ├── index.html             # The analyzer page
-│   │   └── tutorial.html          # The OpenRTB learning page
+│   │   ├── index.html              # Main application web page
+│   │   └── tutorial.html           # OpenRTB learning tutorial page
 │   │
-│   ├── sample_data/               # Six ready-to-use example payloads
-│   └── tests/                     # unittest suites
+│   ├── sample_data/                # Bundled example JSON files for testing
+│   └── tests/                      # Automated test suite
+│       ├── test_openrtb_2_6.py     # Spec validation tests
+│       ├── test_robustness.py      # Hostile input & error-handling tests
+│       ├── test_blocklists.py      # Domain & category blocking tests
+│       ├── test_security.py        # SSRF & upload size security tests
+│       └── test_batch.py           # Multi-payload batch processing tests
 │
-├── docs/
-│   └── openrtb_2_6_extracted.txt  # Reference text from the OpenRTB 2.6 spec
-│
-├── requirements.txt
-└── README.md
+├── requirements.txt                # Python package dependencies
+└── README.md                       # Project documentation
 ```
-
-### Why the services layer is separate
-
-Notice that `routes/` contains almost no logic — `analyze.py` is only ~75 lines and mostly just forwards arguments. All the thinking happens in `services/`.
-
-This separation is deliberate and worth internalising as a design habit:
-
-- **The logic is testable without a web server.** Look at [test_robustness.py](app/tests/test_robustness.py) — it imports `_request_warnings` directly and calls it with a plain dictionary. No HTTP, no mocking, no fixtures.
-- **The logic is reusable.** If you later want a command-line version, or a batch log processor, you import `analyze_request` and you are done. Nothing has to be rewritten.
-- **Each file has one job.** When a CTV score looks wrong, you know to open `type_detector.py` — you do not have to search the codebase.
 
 ---
 
-## 7. How the code works — the pipeline
+## 7. Deep-Dive into the Code (Module by Module)
 
-This is the most useful section if you want to understand or modify the project. Follow one bid request from browser to result.
+Let's examine how each Python service works so you can understand the codebase line by line.
 
-```
-Browser (app.js)
-    │  POST /analyze/request   (multipart form: raw_text / file / source_url)
-    ▼
-routes/analyze.py  ──►  services/request_workflow.py :: analyze_input()
-                                    │
-        ┌───────────────────────────┼───────────────────────────┐
-        ▼                           ▼                           ▼
-  1. normalize_input()        2. parse_json_payload()     3. analyze_request()
-  input_normalizer.py            json_parser.py             request_analyzer.py
-        │                           │                           │
-  text / file / URL           str → dict                  detect + validate
-  gzip? encoding?             request or response?        + explain
-        │                           │                           │
-   NormalizedInput             ParseResult                AnalysisResult
-                                                                │
-                                                                ▼
-                                                    JSON back to the browser
-                                                    → displayResults() renders tabs
-```
+### 7.1 HTTP Layer (`app/routes/`)
 
-### Step 1 — Normalize the input ([input_normalizer.py](app/services/input_normalizer.py))
+- **`app/main.py`**:
+  Initializes FastAPI (`app = FastAPI(...)`), mounts the `/static` folder for serving CSS/JS, and includes the routers from `web.py` and `analyze.py`.
 
-The user can supply data three ways: pasted text, an uploaded file, or a URL. This step reduces all three to one clean string, so nothing downstream has to care where the data came from.
+- **`app/routes/web.py`**:
+  Serves the HTML pages using Jinja2 templates. Injects an `asset_v` cache-busting timestamp into `<script>` and `<link>` tags so browsers never freeze on stale JS/CSS code.
 
-It also handles the messy real world:
-
-- **Priority rule.** If more than one source is provided: raw text wins, then file, then URL — and it adds a note explaining that.
-- **Gzip detection.** Real ad-server logs are often gzipped. The code sniffs the first two bytes for the magic number `\x1f\x8b` and decompresses transparently:
-
-  ```python
-  if raw[:2] == b"\x1f\x8b":
-      raw = gzip.decompress(raw)
-  ```
-
-- **Encoding fallback.** If UTF-8 decoding fails it retries with `errors="replace"` rather than crashing, and warns the user.
-
-**Output:** a `NormalizedInput` object holding the text plus metadata (source type, byte size, notes).
-
-### Step 2 — Parse and classify ([json_parser.py](app/services/json_parser.py))
-
-Runs `json.loads()`. If that fails, the `JSONDecodeError` is caught and converted into a friendly message with the exact line and column:
-
-```python
-errors=[f"Invalid JSON format. Near line {exc.lineno}, column {exc.colno}: {exc.msg}."]
-```
-
-It then handles a practical quirk: log files often contain a JSON **array** of many requests. If the top level is a list, the analyzer takes the first object as representative and tells you so.
-
-Finally it guesses the payload type from structural fingerprints:
-
-| Test | Verdict |
-|---|---|
-| Has an `imp` array | bid **request** |
-| Has `seatbid` or `nbr` | bid **response** |
-| Has `app` or `site` | bid **request** |
-| Has both `bidid` and `id` | bid **response** |
-| None of the above | unknown |
-
-If you paste a response while in Request mode, `request_workflow.py` notices the mismatch and warns you instead of producing nonsense.
-
-**Output:** a `ParseResult` with `parse_status` of `parsed`, `invalid_json`, `unsupported_json`, `empty`, or `fetch_error`.
-
-### Step 3 — Analyze ([request_analyzer.py](app/services/request_analyzer.py) / [response_analyzer.py](app/services/response_analyzer.py))
-
-The analyzer does four things:
-
-1. **Extracts** the fields it knows about, using whitelists (`DEVICE_FIELDS`, `VIDEO_FIELDS`, and so on — around 150 field names in total). Empty values are dropped, so the output stays readable.
-2. **Detects** high-level characteristics by calling `detect_request_type()`.
-3. **Validates** — `_request_warnings()` collects "this is suspicious" findings, `_request_errors()` collects "this breaks the spec" findings.
-4. **Explains** by calling into `explanation_engine.py`.
-
-Everything is packed into an `AnalysisResult` and serialised straight to JSON.
-
-### The `parse_status != "parsed"` guard
-
-Both analyzers open with an early return that builds a complete, empty-but-valid result when parsing failed. That is not defensive noise — it means the frontend always receives the same object shape and never has to write `if (result.summary)` checks. **Design lesson: a consistent response shape is worth a few lines of duplication.**
-
-### Helper functions that make the code safe ([helpers.py](app/services/helpers.py))
-
-Real bid requests are inconsistent — a field that should be a number arrives as a string, an object arrives as a string, a list arrives as a single value. Four small helpers absorb all of that:
-
-| Helper | Problem it solves |
-|---|---|
-| `get_nested(data, "device.geo.country")` | Dotted-path lookup that returns a default instead of raising `KeyError` |
-| `ensure_list(value)` | Wraps a single value in a list so you can always safely iterate |
-| `coerce_int` / `coerce_float` | Converts `"3"` → `3`, and returns `None` instead of crashing on garbage |
-| `has_value(value)` | Truthiness that treats `""`, `[]`, `{}`, and whitespace as "absent" |
-
-These are used on nearly every line of the analysis code. That is why [test_robustness.py](app/tests/test_robustness.py) can throw payloads like `"video": "not-an-object"` at the analyzer and get warnings instead of a stack trace.
+- **`app/routes/analyze.py`**:
+  Exposes the REST API endpoints:
+  - `POST /analyze/request`: Accepts Form text/file/URL, calls `analyze_input(mode="request")`.
+  - `POST /analyze/response`: Accepts Form text/file/URL, calls `analyze_input(mode="response")`.
+  - `POST /analyze/compare`: Accepts JSON body with both request and response payloads, returns comparison metrics.
+  - `POST /analyze/batch`: Analyzes multi-line JSON logs.
+  - `GET /samples`: Reads and returns sample JSON payloads from `app/sample_data/`.
 
 ---
 
-## 8. Inside the rules engine
+### 7.2 Data Models (`app/models/schemas.py`)
 
-### 8.1 Lookup tables ([rules_engine.py](app/services/rules_engine.py))
+This file defines the strict structure of data returned by the backend using Pydantic classes:
+- **`AnalysisResult`**: The main payload sent to the frontend containing summary cards, parsed fields, human explanations, warnings, errors, and inferred signals.
+- **`ComparisonResult`**: Contains the pass/warn/fail status of cross-checking a bid response against a bid request.
+- **`BatchResult`**: Holds metrics and aggregate distributions for batch analysis.
 
-The OpenRTB spec encodes many things as integers. This file is the decoder ring:
+---
 
-```python
-DEVICE_TYPE_LABELS = {
-    1: "mobile or tablet", 2: "desktop",   3: "connected TV",
-    4: "phone",            5: "tablet",    6: "connected device",
-    7: "set-top box",
-}
-```
+### 7.3 Services Layer (`app/services/`)
 
-Similar tables exist for auction types, connection types, video placements, markup types, and the eleven standard no-bid reason codes. Every lookup goes through a wrapper that handles unknown values gracefully:
+The services layer is completely decoupled from web framework code. This means you can run analysis functions in a terminal or background job without needing a server!
 
-```python
-def device_type_label(value):
-    numeric = coerce_int(value)
-    if numeric is None:
-        return "unknown device type"
-    return DEVICE_TYPE_LABELS.get(numeric, f"device type {numeric}")
-```
+#### 1. `helpers.py` — Safe Utility Functions
+Ad auction data in the real world is notoriously dirty (a number might arrive as a string like `"18.5"`, or a list might arrive as a single string). `helpers.py` provides 4 essential safety tools:
+- `get_nested(dict, "device.geo.country")`: Performs dotted lookup without raising `KeyError`.
+- `ensure_list(val)`: Wraps single items in a list so loops never crash.
+- `coerce_int(val)` & `coerce_float(val)`: Safely converts values to numbers without throwing `ValueError`.
+- `has_value(val)`: Returns `True` only if a field contains non-empty, meaningful data.
 
-### 8.2 CTV scoring ([type_detector.py](app/services/type_detector.py))
+#### 2. `input_normalizer.py` — Cleaning Raw Inputs
+Converts pasted text, file uploads, or URL downloads into a single normalized text string.
+- Automatically handles **Gzip decompression** if the raw input starts with magic bytes `\x1f\x8b`.
+- Decodes UTF-8 text with fallback error replacement.
 
-There is **no field in OpenRTB that says "this is a smart TV."** You have to infer it from circumstantial evidence. The app uses a weighted-signal score out of 14:
+#### 3. `json_parser.py` — Parsing & Auto-Classification
+- Converts JSON text into Python dictionaries using `json.loads()`.
+- Captures line and column numbers on syntax errors to give helpful error messages to users.
+- Automatically detects whether a payload is a **Bid Request** (has `imp`, `app`, `site`) or a **Bid Response** (has `seatbid`, `nbr`, `bidid`).
 
-| Signal | Points | Reasoning |
+#### 4. `type_detector.py` — Intelligence & Heuristics
+Contains the core intelligence algorithms:
+- **CTV Scoring**: Calculates a Connected TV score out of 14 points (see [Section 8.1](#81-how-ctv-scoring-works-the-math)).
+- **Ad Format Detection**: Determines whether an impression is `banner`, `video`, `audio`, `native`, or `mixed`.
+- **Environment Detection**: Detects `mobile_app`, `web`, `dooh`, or `ctv_app`.
+- **Version Guessing**: Evaluates whether a payload uses OpenRTB 2.5 fields or modern OpenRTB 2.6 fields (like `poddur`, `rqddurs`, `plcmt`).
+
+#### 5. `rules_engine.py` — Dictionary Decoders
+Translates raw spec integer codes into human labels:
+- `device_type_label(3)` ➔ `"connected TV"`
+- `auction_type_label(1)` ➔ `"first-price auction"`
+- `no_bid_reason_label(2)` ➔ `"Unmatched User / Unknown Cookie"`
+
+#### 6. `request_analyzer.py` & `response_analyzer.py` — Spec Validation
+- Extracts key OpenRTB fields.
+- Checks over **40 spec rules** for errors (e.g., missing required impression IDs, invalid price values, conflicting video parameters) and warnings (e.g., missing user-agent, missing geo location, deprecated hashed device IDs).
+- Evaluates macro placeholders like `${AUCTION_PRICE}`.
+
+#### 7. `comparison_engine.py` — Cross-Checking Request vs Response
+- Matches bid response items (`impid`) against bid request impressions (`imp.id`).
+- Checks if the bid price satisfies the minimum `bidfloor`.
+- Cross-references blocked advertiser domains (`badv`), blocked IAB categories (`bcat`), and blocked app bundles (`bapp`).
+
+---
+
+### 7.4 Frontend UI (`app/static/` & `app/templates/`)
+
+- **`templates/index.html`**:
+  Clean HTML5 layout featuring:
+  - Header with theme toggle and tutorial link.
+  - Mode selector (`Request`, `Response`, `Compare`, `Batch`).
+  - Code Editor panel with line numbers and toolbar actions (`Prettify`, `Copy`, `Clear`).
+  - Results view featuring KPI Dashboard cards and tabbed navigation (`Overview`, `Insights`, `Request`, `Response`, `Compare`, `Signals`, `Cheatsheet`, `Warnings`, `Raw`).
+
+- **`static/styles.css`**:
+  Vanilla CSS featuring a custom **Design System**:
+  - CSS custom properties for both themes. `:root` carries the dark palette
+    (the default), and `html[data-theme="light"]` overrides it. An inline
+    script in `index.html` stamps `data-theme` before first paint so a
+    light-preference machine does not flash dark.
+  - Light mode overrides the *tokens* rather than the rules that consume
+    them — redefining `--primary-light` and `--accent-cyan` fixes every
+    consumer at once, instead of duplicating each selector.
+  - Dark surface steps (`--bg-app` → `--surface` → `--surface-alt`) are
+    spaced ~9 CIE L\* apart so cards visibly lift off the page.
+  - Every text/background pair in both themes meets WCAG AA (4.5:1 for body
+    text, 3:1 for large text), including the tinted status surfaces and the
+    two Overview hero gradients.
+  - Translucent status badges (`rgba(...)`) for clean visual feedback.
+  - Responsive flexbox and grid layouts, plus a `prefers-reduced-motion`
+    block that disables transitions and the animated background mesh.
+  - **Result-rendering primitives** (§12: `.r-table`, `.stat-tile`,
+    `.verdict-banner`, `.status-card`, `.dist-*`, `.hero-card`) are consumed
+    by `displayResults()` in `app.js`. They must stay in this file — as
+    inline styles they would not follow the theme.
+
+- **`static/app.js`**:
+  Handles state management and interactive behavior:
+  - `switchMode()`: Handles mode tab switching without losing user text inputs.
+  - `analyzeAll()`: Sends async POST requests to the FastAPI backend.
+  - `displayResults()`: Dynamically builds KPI metric cards, tabs, warning counters, and raw JSON views using vanilla DOM manipulation.
+
+---
+
+## 8. Inside the Analysis Engines
+
+### 8.1 How CTV Scoring Works (The Math)
+
+Connected TV (CTV) traffic is high-value inventory. Because OpenRTB doesn't have a single "is_ctv" boolean, the app evaluates **6 distinct signals** to compute a score out of **14 points**:
+
+| Signal Evaluated | Points | Why this signal matters |
 |---|---:|---|
-| A `video` object is present | 2 | TV ads are video; necessary but not sufficient |
-| An `app` object is present | 2 | TV apps report as apps, never as websites |
-| User agent contains a TV marker (`roku`, `tizen`, `webos`, `android tv`, `fire tv`, `appletv`, `smarttv`, `aft`) | **3** | Strong, hard to fake accidentally |
-| `device.devicetype` is 3, 6, or 7 | **3** | The publisher explicitly declared a TV device |
-| Pod fields present (`poddur`, `podid`, `podseq`, `slotinpod`) | 2 | Ad pods = commercial breaks, a TV-only concept |
-| Duration-floor fields present (`mincpmpersec`, `durfloors`) | 2 | Pricing by the second is a CTV convention |
+| **User Agent String** contains `roku`, `tizen`, `webos`, `android tv`, `fire tv`, `appletv`, `smarttv` | **3 pts** | TV user agents are explicit and hard to fake. |
+| **`device.devicetype`** is `3` (CTV), `6` (Connected Device), or `7` (Set-top Box) | **3 pts** | Publisher explicitly declared a TV device type. |
+| **`app` object** present | **2 pts** | Connected TVs operate via streaming apps, not web browsers. |
+| **`video` object** present | **2 pts** | TV ad inventory is exclusively video/audio. |
+| **Ad Pod fields** (`poddur`, `podid`, `podseq`, `slotinpod`) present | **2 pts** | Ad pods represent commercial breaks, a TV-specific concept. |
+| **Second-based pricing** (`mincpmpersec`, `durfloors`) present | **2 pts** | Pricing by video second is standard in CTV. |
 
-| Total score | Verdict |
-|---|---|
-| 6 or more | **likely CTV** |
-| 3 to 5 | **maybe CTV** |
-| 0 to 2 | **unlikely CTV** |
-
-The score is never shown on its own — `ctv_reasons` lists exactly which signals fired, so you can disagree with the verdict on the evidence. The maximum is exported as the constant `CTV_SCORE_MAX` so the UI renders "14 / 14" rather than hardcoding the scale (change a weight, and the UI follows automatically).
-
-### 8.3 Version inference
-
-The app deliberately does **not** claim to know the exact OpenRTB version, because most payloads never state one. Instead it looks for fields that only exist in 2.6 (`poddur`, `podid`, `podseq`, `slotinpod`, `rqddurs`, `plcmt`, `mincpmpersec`, `durfloors`) and reports a labelled guess with a confidence level:
-
-| Evidence found | Label | Confidence |
-|---|---|---|
-| 3 or more modern fields | likely 2.6-aligned | high |
-| 1–2 modern fields | likely 2.6-aligned | medium |
-| Impressions present, no modern fields | likely 2.5-compatible | medium |
-| No usable impression structure | mixed / unclear | low |
-
-**This honesty is a feature.** A tool that confidently prints "OpenRTB 2.6" from ambiguous evidence teaches you the wrong thing. Showing the evidence and a confidence level teaches you how the inference actually works.
-
-### 8.4 Validation: warnings vs errors
-
-The distinction matters and is applied consistently:
-
-- **Errors** = the payload violates the spec. Examples: no `imp` array at all; a `bidfloor` that is not numeric; a video object that mixes `rqddurs` with `minduration`/`maxduration` (2.6 makes those mutually exclusive); a PMP deal with no `id`.
-- **Warnings** = legal but risky, deprecated, or bad for monetisation. Examples: no `device` object; a device with no UA/IP/IFA (low addressability); deprecated hashed device IDs (`didsha1`, `macmd5`); both `keywords` and `kwarray` on the same object; missing geo; missing floor.
-
-Roughly 40 checks are implemented across the two analyzers, including deep structural validation of `device.sua` (the 2.6 structured user agent) and GPP privacy fields.
-
-### 8.5 Macro validation ([response_analyzer.py](app/services/response_analyzer.py))
-
-When a DSP wins, the exchange rewrites placeholders inside the win URL — `${AUCTION_PRICE}` becomes the real clearing price. Getting the syntax wrong means the DSP is never told what it paid, which quietly breaks reporting. `check_macro_warnings()` catches three failure modes:
-
-1. **Legacy bracket-less form** — `$AUCTION_PRICE` instead of `${AUCTION_PRICE}`
-2. **Unclosed macros** — a `${AUCTION_` with no matching `}`
-3. **Unknown macro names** — anything outside the seven-macro allowlist
+#### Verdict Scale:
+- **6 to 14 points** ➔ **Likely CTV**
+- **3 to 5 points** ➔ **Maybe CTV**
+- **0 to 2 points** ➔ **Unlikely CTV**
 
 ---
 
-## 9. The comparison engine
+### 8.2 OpenRTB Version Detection
 
-[comparison_engine.py](app/services/comparison_engine.py) is where the app earns its keep. It answers the question a DSP engineer actually asks: *"my bid was discarded — why?"*
+OpenRTB payloads rarely state their version explicitly. The analyzer evaluates the presence of OpenRTB 2.6 features:
 
-It builds a lookup of every impression in the request keyed by `imp.id`, then walks every bid in the response and runs targeted checks. Each check returns **PASS**, **WARNING**, or **FAIL**; the worst individual result becomes the overall status.
+- If **3+ modern fields** (`poddur`, `rqddurs`, `plcmt`, `slotinpod`) exist ➔ **Likely OpenRTB 2.6-aligned (High Confidence)**.
+- If **1–2 modern fields** exist ➔ **Likely OpenRTB 2.6-aligned (Medium Confidence)**.
+- If impressions exist without 2.6 fields ➔ **Likely OpenRTB 2.5-compatible**.
 
-| Check | What it catches |
-|---|---|
-| Auction id match | Response `id` does not echo the request `id` — correlation is broken |
-| Currency match | Request priced in USD, response in EUR |
-| **impid mapping** | The bid points at an impression that does not exist in the request |
-| **Floor compliance** | `price` is below `bidfloor` — the bid will be discarded |
-| **Deal match** | The bid claims a `dealid` that the request never offered |
-| Creative size | Banner dimensions do not match the requested `w`×`h` |
-| **Ad pod alignment** | Request is podded but the bid omits `podid`/`slotinpod`, or they disagree |
-| **Duration compliance** | `dur` is not in `rqddurs`, or is outside `minduration`/`maxduration` |
-| **CPM-per-second floor** | `price ÷ dur` is below `mincpmpersec` (a CTV-specific pricing rule) |
-| Video/audio completeness | Request wants video but the bid has no duration or markup |
-| **Advertiser blocklist** (`badv`) | The bid's `adomain` is on the request's blocked-advertiser list |
-| **Category blocklist** (`bcat`) | The bid's `cat` is on the request's blocked-category list |
-| **App blocklist** (`bapp`) | The promoted `bundle` is blocked by the request |
-| **Seat eligibility** (`wseat` / `bseat`) | The bidding seat is outside the allowlist or on the blocklist |
-| **Creative attributes** (`battr`) | The bid's `attr` includes an attribute the impression blocks |
+---
 
-### Blocklist matching rules
+### 8.3 The Rules & Validation Engine
 
-These four are the most common causes of a bid being discarded before the auction even runs, and each has a matching subtlety worth knowing:
+Validation checks are divided into two distinct severities:
 
-- **`badv` matches subdomains.** Blocking `ford.com` also blocks `ads.ford.com`, but *not* `notford.com` — the suffix match requires the dot, so lookalike domains do not false-positive.
-- **`bcat` is hierarchical.** Blocking `IAB25` also blocks `IAB25-3`, but not `IAB250`.
-- **Matching is case-insensitive**, while messages echo the payload's original casing so you can find the field again.
-- **A missing field produces a WARNING, not a PASS.** If the request declares `badv` but the bid has no `adomain`, the bid cannot be screened — that is a real problem, and silently passing it would hide it.
+1. **Errors (Spec Violations)**:
+   - Request missing the `imp` array.
+   - `bidfloor` is not a valid number.
+   - Response bid has no price or `impid`.
+   - Video object mixes `rqddurs` (exact durations) with `minduration`/`maxduration` (illegal in OpenRTB 2.6).
 
-Running the two CTV samples through it produces:
+2. **Warnings (Best Practices & Addressability Risks)**:
+   - Missing `device` object or user-agent (`ua`).
+   - Hashed device IDs (`didsha1`, `macmd5`) used instead of modern resettable IDs (`ifa`).
+   - Missing geolocation (`device.geo`).
+   - Both `keywords` (string) and `kwarray` (list) populated on the same object.
 
-```
-Overall: PASS
+---
 
-PASS  Request/response id: Response id matches the request id.
-PASS  Currency: Both payloads use USD.
-PASS  Floor check for imp imp-ctv-1: Bid price 24.25 is at or above the floor 18.5.
-PASS  Deal match for imp imp-ctv-1: Response dealid deal-ctv-77 exists in the request deal list.
-PASS  Ad Pod ID match for imp imp-ctv-1: Response podid matches request podid 'pod-a'.
-PASS  CPM per second floor for imp imp-ctv-1: Bid CPM per second (0.8083) satisfies the floor (0.3500).
+### 8.4 The Comparison Engine (Matching Request vs Response)
+
+When comparing a Bid Request against a Bid Response, the comparison engine runs 15 targeted checks:
+
+```python
+# Simplified Logic Example from comparison_engine.py
+if bid_price < bid_floor:
+    return CheckResult(
+        status="FAIL", 
+        label="Floor compliance", 
+        message=f"Bid price ${bid_price} is below required floor ${bid_floor}"
+    )
 ```
 
-That last check is a good example of encoded domain knowledge. On connected TV, buyers are often required to pay a minimum rate *per second of ad time* rather than a flat CPM. The engine computes `24.25 ÷ 30 = 0.8083` and compares it against the requested `mincpmpersec` of `0.35`. Nothing in the raw JSON tells you that division needs to happen — you have to know the business rule. That is precisely the kind of knowledge a tool like this exists to capture.
+#### Key Checks Executed:
+1. **Auction ID Match**: Does `response.id` echo `request.id`?
+2. **Impression ID (`impid`) Match**: Does the bid point to a valid impression ID in the request?
+3. **Floor Compliance**: Is `bid.price` $\ge$ `imp.bidfloor`?
+4. **Advertiser Blocklist (`badv`)**: Is the bid's advertiser domain listed in the request's blocked domain list? (e.g., `ads.ford.com` correctly matches blocked domain `ford.com`).
+5. **Category Blocklist (`bcat`)**: Is the bid's IAB category blocked? (e.g., Category `IAB25-3` is matched hierarchically against blocked category `IAB25`).
 
 ---
 
-## 10. The user interface, tab by tab
+## 9. API Endpoint Reference
 
-Everything lives on one page, driven by [app.js](app/static/app.js). There is no framework — just `document.getElementById` and template strings.
+FastAPI automatically generates interactive OpenAPI documentation at **`http://127.0.0.1:8000/docs`**.
 
-### Three modes
+### Summary of Routes
 
-| Mode | Endpoints called |
-|---|---|
-| 🔍 **Request** | `POST /analyze/request` |
-| 📨 **Response** | `POST /analyze/response` |
-| ⚖️ **Compare** | both of the above, then `POST /analyze/compare` |
-| 📦 **Batch** | `POST /analyze/batch` |
-
-### Batch mode
-
-Paste or upload a whole log instead of one payload. It accepts a **JSON array**, **newline-delimited JSON** (one object per line, the format ad-server logs emit), or a single object, and it auto-detects request vs response per entry — or you can force one kind.
-
-The Overview tab then shows aggregates across the batch: how many entries were valid, the distribution of ad formats, environments, CTV likelihood, versions and deal types, floor min/avg/max, and **warnings ranked by how often they occur**. That last one is the point of batch mode — it turns "this request has a warning" into "37% of your inventory is missing geo."
-
-The Batch tab lists every entry in a table, and CSV export writes one row per entry. Unparseable JSONL lines are reported by line number and skipped rather than failing the whole batch; entries beyond 1,000 are skipped with an explicit notice rather than silently dropped.
-
-### Four ways to get data in
-
-- **📝 Paste** — with live JSON validation as you type (it shows the failing line number before you even click Analyze) and a ✨ Prettify button
-- **📁 Upload** — click or drag-and-drop `.json`, `.txt`, `.log`
-- **🌐 URL** — fetch JSON from a public HTTP/HTTPS address
-- **📋 Samples** — one-click loading of the six bundled payloads
-
-### Nine result tabs
-
-| Tab | Contents |
-|---|---|
-| 📊 Overview | KPI cards — impressions, format, environment, floor range, validity (batch aggregates in Batch mode) |
-| 📦 Batch | Per-entry table for a batch run |
-| 💡 Insights | The plain-English, field-by-field explanations |
-| 📋 Request | Structured breakdown of every parsed request object |
-| 📨 Response | Seats, bids, prices, creative metadata |
-| ⚖️ Compare | The PASS/WARNING/FAIL check list |
-| 📺 Signals | CTV score with its reasons, version guess, traffic-quality notes |
-| 🎓 Cheatsheet | Five interview-ready talking points about this payload |
-| ⚠️ Warnings | All warnings and errors in one list |
-| 📄 Raw | The original JSON, pretty-printed |
-
-The tab strip implements the full **WAI-ARIA tab pattern** — `role="tab"`, `aria-selected`, and roving `tabindex` so arrow keys move between tabs and screen readers announce them correctly. Worth reading [`activateTab()`](app/static/app.js) if you have never implemented accessible tabs before.
-
-### Theming and the result design system
-
-This is the part most worth studying, because it is where the app previously had its worst bug.
-
-`app.js` builds every result panel at runtime. It originally wrote hardcoded hex colours into that generated markup — and a hex value cannot follow a theme. Combined with `.section { background: white }`, which pinned the two main panels to white regardless of theme, **the dark mode toggle only ever darkened the page chrome**: the entire workspace stayed a white slab, with 24 light cards and text that dropped to **1.04:1 contrast** where it inherited the near-white theme colour.
-
-The fix was to introduce a token layer in [styles.css](app/static/styles.css) — `--surface`, `--surface-alt`, and four status tones (`--pass-*`, `--warn-*`, `--fail-*`, `--info-*`) — and have the JS emit **classes** (`.status-card.pass`, `.stat-tile.warn`, `.r-kv`) instead of inline colours. Three details are worth copying into your own projects:
-
-1. **An explicit `html[data-theme="light"]` block is mandatory.** With only a `prefers-color-scheme` media query and a `[data-theme="dark"]` block, a user whose OS is dark who toggles to light gets light surfaces with near-white text — the toggle half-works. The light block must restate the whole palette, not just the new tokens.
-2. **Translucent status backgrounds (`rgba(…, 0.12)`) work in both themes**, because they tint whatever surface they sit on rather than replacing it. Solid pastels do not.
-3. **Brand colours are often not accessible as text.** `--primary` (`#6366f1`) as a label sits at 3.64:1 on the dark surface — under the 4.5:1 AA threshold. The same colour as active-tab text measured 2.95:1. A separate `--kv-key` token (`#4338ca` light, `#a5b4fc` dark) keeps the indigo identity at 7.6:1 and 8.0:1, and is now used for both. `--success` and `--error` had the same problem as status text, so `.json-status` uses the text-weight `--pass-fg` / `--fail-fg` instead.
-
-Verified by walking every text node, flattening translucent layers to compute the real effective background, and checking each against its WCAG AA threshold: **0 failures across the page chrome and all ten result panels, in both themes.**
-
-> **If you run this audit yourself, disable CSS transitions first.** `getComputedStyle` returns *interpolated* values mid-transition, so measuring right after a theme switch reports colours that never actually settle — it produced a batch of phantom failures (including an impossible 1.0:1) before the transitions were frozen. Gradient backgrounds also need excluding: `backgroundColor` is transparent on a gradient element, so a naive walk up the tree reports whatever solid ancestor it finds and invents failures that are not real.
-
-### Icons
-
-The UI used OS emoji throughout. They render differently on Windows, macOS and Linux, and they sit off the text baseline, which reads as unpolished in a developer tool. They are now a **sprite of stroke-based SVG symbols** defined once at the top of [index.html](app/templates/index.html) and referenced with `<use href="#i-name">`.
-
-Two properties make this worth the swap, and neither is available to an emoji:
-
-- `width: 1em` — the icon scales with its button's font size automatically.
-- `color: currentColor` — the icon inherits hover, active and theme colours for free.
-
-`app.js` emits the same references through an `icon(name)` helper, so generated results and static chrome share one icon set. Emoji deliberately remain in two places: the exported HTML and printable reports (standalone files that cannot reach the page's sprite) and [tutorial.html](app/templates/tutorial.html), which was out of scope.
-
-### The code editor
-
-A plain `<textarea>` gives no sense of where a syntax error is. It now sits inside an `.editor-shell` alongside a **line-number gutter**, with the failing line highlighted when JSON parsing fails.
-
-It is still a real `<textarea>` rather than a contenteditable rewrite — that keeps native undo, IME input, spellcheck control and screen-reader behaviour that a custom editor would have to reimplement. The gutter is a sibling element kept in sync on `input` and `scroll`.
-
-The one detail that matters if you build this yourself: **the gutter and the textarea must agree exactly on font family, font size, line height and vertical padding**, or the numbers drift out of alignment further down a long payload. Both read from shared custom properties on `.editor-shell` for exactly that reason.
-
-### Other UI details worth reading the code for
-
-- **Editor toolbar**: Format, Copy, Sample and Clear in one row above the code, rather than split between the label corner and the bottom of the card
-- **Export menu**: one trigger rather than five buttons, implemented as a real ARIA menu — Escape and click-outside close it, arrow keys walk the items, and focus returns to the trigger so keyboard users are not stranded
-- **Sticky Analyze bar**: the action row used to sit below the textarea, so analysing a 200-line payload meant scrolling to the bottom first
-- **Count badges** on the Insights, Signals, Compare, Batch and Warnings tabs, so a tab's weight is visible without opening it. The Warnings badge switches to the failure tone when errors are present, with an `aria-label` carrying the same information
-- **One tab row**: the tabs were previously two labelled groups (`ANALYSIS` and `REFERENCE`), which split one mental model in half. They are now a single `role="tablist"` — so arrow keys traverse all ten — that **wraps** rather than scrolls. Ten labelled tabs cannot fit the ~520px results column, and a horizontal scrollbar hides tabs behind an affordance people miss
-- **Theme toggle**: light/dark, persisted in `localStorage`
-- **Keyboard shortcut**: `Ctrl+Enter` analyzes from anywhere
-- **Reduced motion**: hover transforms and the animated background are disabled under `prefers-reduced-motion`
-- **Cache busting**: [web.py](app/routes/web.py) computes `asset_version()` from the newest static-file modification time and appends it as `?v=...` to the CSS and JS tags. Without this, browsers happily serve a stale `app.js` and your changes appear not to work — a genuinely maddening bug this project already hit once (commit `c88f0ef`).
-
----
-
-## 11. API reference
-
-The backend is a normal REST API, so you can use it without the UI at all. FastAPI generates interactive docs at <http://127.0.0.1:8000/docs> where you can try every endpoint in the browser.
-
-| Method | Path | Body | Returns |
+| HTTP Method | Endpoint Path | Description | Request Type |
 |---|---|---|---|
-| `POST` | `/analyze/request` | form: `raw_text` \| `file` \| `source_url` | `AnalysisResult` |
-| `POST` | `/analyze/response` | form: `raw_text` \| `file` \| `source_url` | `AnalysisResult` |
-| `POST` | `/analyze/batch` | form: `raw_text` \| `file` \| `source_url`, plus `mode` | batch report |
-| `POST` | `/analyze/compare` | JSON: `{request_payload, response_payload}` | comparison report |
-| `POST` | `/fetch/url` | JSON: `{url}` | raw fetched text |
-| `GET` | `/samples` | — | all bundled samples |
-| `GET` | `/health` | — | `{"status": "ok"}` |
-| `GET` | `/` | — | the analyzer HTML page |
-| `GET` | `/tutorial` | — | the tutorial HTML page |
+| `POST` | `/analyze/request` | Analyzes a single OpenRTB Bid Request | `Multipart Form` |
+| `POST` | `/analyze/response` | Analyzes a single OpenRTB Bid Response | `Multipart Form` |
+| `POST` | `/analyze/compare` | Compares a Request payload against a Response payload | `JSON Body` |
+| `POST` | `/analyze/batch` | Analyzes multi-line JSON or array log payloads | `Multipart Form` |
+| `POST` | `/fetch/url` | Safely fetches JSON content from a public URL | `JSON Body` |
+| `GET` | `/samples` | Returns bundled example JSON payloads | `None` |
+| `GET` | `/health` | Healthcheck endpoint (`{"status": "ok"}`) | `None` |
 
-### Example: analyze a file with curl
+---
 
+## 10. Automated Testing & Quality Assurance
+
+The project includes an automated test suite located in `app/tests/`.
+
+### Running Tests
+Execute the tests using pytest:
 ```bash
-curl -X POST http://127.0.0.1:8000/analyze/request -F "file=@app/sample_data/sample_request_ctv.json"
+python -m pytest
 ```
 
-### Example: use it from Python
-
-```python
-import json, httpx
-
-request_payload = json.load(open("app/sample_data/sample_request_ctv.json"))
-response_payload = json.load(open("app/sample_data/sample_response_ctv.json"))
-
-result = httpx.post(
-    "http://127.0.0.1:8000/analyze/compare",
-    json={"request_payload": request_payload, "response_payload": response_payload},
-).json()
-
-print(result["overall_status"])          # PASS
-for check in result["checks"]:
-    print(check["status"], check["label"])
-```
-
-### The `AnalysisResult` shape
-
-Defined in [schemas.py](app/models/schemas.py); every analyze endpoint returns exactly these keys:
-
-```python
-{
-  "input_source":  {...},   # where the data came from + notes
-  "input_type":    "request" | "response" | "unknown",
-  "parse_status":  "parsed" | "invalid_json" | "unsupported_json" | "empty" | "fetch_error",
-  "parsed_fields": {...},   # extracted, whitelisted fields grouped by object
-  "summary":       {...},   # the headline numbers
-  "human_explanations": [...],
-  "inferred_signals":   {...},   # CTV score, version note, traffic quality
-  "request_type_detection": {...},
-  "warnings": [...],
-  "errors":   [...],
-  "comparison_results": {...},
-  "interview_points":   [...],
-  "raw_payload": {...}      # the original JSON, unmodified
-}
-```
+### Test Suites Included:
+- **`test_openrtb_2_6.py`**: Validates OpenRTB 2.6 spec conformance rules.
+- **`test_robustness.py`**: Hostile input testing (feeds broken/malformed payloads to verify the app throws friendly warnings instead of crashing).
+- **`test_blocklists.py`**: Tests domain (`badv`), category (`bcat`), and app (`bapp`) blocklist matching logic.
+- **`test_security.py`**: Verifies SSRF protection on internal IP ranges (`127.0.0.1`, `169.254.169.254`) and file upload size caps.
+- **`test_batch.py`**: Tests multi-payload array and JSONL log parsing.
 
 ---
 
-## 12. Sample data
+## 11. Glossary of Important Terms
 
-Six payloads in `app/sample_data/`, each chosen to exercise a different code path:
-
-| File | Demonstrates |
-|---|---|
-| `sample_request_ctv.json` | Connected TV — scores the full 14/14, includes ad pods, a PMP deal, and a supply chain |
-| `sample_response_ctv.json` | The matching winning bid — pairs with the file above for Compare mode |
-| `sample_request_banner.json` | Classic web display — the simplest case |
-| `sample_response_nobid.json` | A no-bid response with an `nbr` reason code |
-| `sample_request_audio.json` | Audio/podcast inventory |
-| `sample_request_native.json` | Native (in-feed) inventory |
-
-**Suggested learning exercise:** load the CTV sample, delete the `"devicetype": 3` line, and re-analyze. The score drops from 14 to 11, the verdict stays "likely CTV" (still above 6), and one entry disappears from the reasons list. Then delete the `device` object entirely and watch new warnings appear. Poking at these files is the fastest way to understand the scoring model.
+- **RTB (Real-Time Bidding)**: Buying and selling ad impressions via automated sub-100ms auctions.
+- **OpenRTB**: The standardized protocol for RTB auctions created by IAB Tech Lab.
+- **SSP (Supply-Side Platform)**: System used by publishers to sell ad inventory.
+- **DSP (Demand-Side Platform)**: System used by advertisers to purchase ad inventory.
+- **CPM (Cost Per Mille)**: Price per 1,000 ad impressions (e.g., $15.00 CPM = $0.015 per ad).
+- **Bid Floor**: Minimum CPM price acceptable for an impression.
+- **CTV (Connected TV)**: Smart TVs and streaming devices (Roku, Fire TV, Apple TV).
+- **Ad Pod**: A commercial break containing multiple back-to-back ads.
+- **PMP (Private Marketplace)**: An invitation-only private ad auction with pre-negotiated deal rates (`dealid`).
+- **VAST (Video Ad Serving Template)**: XML standard for delivering video ad creatives.
 
 ---
 
-## 13. Running the tests
+## 12. Security, Limitations & Future Enhancements
 
-```bash
-python -m pytest app/tests -q
-```
+### Security Features
+1. **SSRF Guard**: [url_fetcher.py](app/services/url_fetcher.py) blocks URL fetching from private/loopback IP ranges (`127.0.0.0/8`, `10.0.0.0/8`, `192.168.0.0/16`, AWS metadata `169.254.169.254`).
+2. **File Size Limit**: Uploads are restricted to 5 MB (`MAX_UPLOAD_BYTES`) to prevent memory exhaustion.
 
-Expected output:
+### Limitations
+- Supports OpenRTB **2.5 and 2.6** (OpenRTB 3.0 uses a different structure called AdCOM).
+- Designed primarily for local execution on `127.0.0.1`.
 
-```
-..................................................... [100%]
-53 passed, 19 subtests passed in 3.46s
-```
-
-Four suites:
-
-- **[test_openrtb_2_6.py](app/tests/test_openrtb_2_6.py)** — spec-conformance tests. Does the analyzer catch a video object that mixes `rqddurs` with `maxduration`? Does it flag deprecated `bid.api`? Does it validate `device.sua` structure?
-- **[test_robustness.py](app/tests/test_robustness.py)** — hostile-input tests. It feeds deliberately broken payloads (`"video": "not-an-object"`, `"device": "not-an-object"`, a bid array containing a bare string) and asserts that the analyzer produces warnings instead of raising `AttributeError`.
-- **[test_blocklists.py](app/tests/test_blocklists.py)** — the `badv`/`bcat`/`bapp`/`wseat`/`battr` cross-checks, including the near-miss cases that must *not* fire (`notford.com` against a `ford.com` block, `IAB250` against an `IAB25` block).
-- **[test_security.py](app/tests/test_security.py)** — the SSRF address filter against twelve internal-address forms, the URL fetcher's refusal of localhost by name and by IP, and the upload size cap.
-
-The robustness suite is the most instructive one. Parsing data from other companies means you will *definitely* receive malformed input, and a validation tool that crashes on bad data is useless precisely when you need it most. The blocklist suite is a close second: most of its tests exist to prove a check does *not* fire, which is where matching logic usually goes wrong.
-
-There is also **[test_batch.py](app/tests/test_batch.py)** covering the array/JSONL/single-object splitter, per-entry skipping, aggregate distributions, and the 1,000-entry cap.
+### Future Ideas to Explore
+- **VAST XML Inspector**: Parse VAST XML creative strings inside `bid.adm` to validate video bitrates and tracking pixels.
+- **Side-by-Side Request Diff Tool**: Compare two bid requests to highlight what changed between software releases.
+- **CLI Tool**: Package `analyze_input` into a terminal command-line tool.
 
 ---
 
-## 14. Glossary
-
-| Term | Meaning |
-|---|---|
-| **RTB** | Real-Time Bidding — buying each ad impression via a live auction |
-| **OpenRTB** | The IAB Tech Lab standard defining the JSON format for those auctions |
-| **SSP / Exchange** | Supply-Side Platform — sells inventory for publishers, runs the auction |
-| **DSP** | Demand-Side Platform — bids for advertisers |
-| **Impression (`imp`)** | One ad slot in one auction. A request can carry several |
-| **CPM** | Cost Per Mille — price per 1,000 impressions. A `price` of 24.25 means $24.25 per 1,000 |
-| **Bid floor** | Minimum acceptable price. Bid below it and you are discarded |
-| **CTV** | Connected TV — Roku, Fire TV, Apple TV, smart TVs |
-| **OTT** | Over-The-Top — streaming video delivered over the internet |
-| **Ad pod** | A commercial break: several ads played back to back. A TV concept |
-| **PMP** | Private Marketplace — an invitation-only auction |
-| **Deal ID** | Identifier for a pre-negotiated buying agreement |
-| **First-price** | Winner pays exactly what they bid (`at: 1`) |
-| **Second-price** | Winner pays just above the runner-up (`at: 2`) |
-| **`adm`** | Ad Markup — the actual HTML/VAST creative returned in the bid |
-| **`nurl` / `burl`** | Win-notice and billing-notice URLs, fired when the bid wins |
-| **VAST** | Video Ad Serving Template — the XML standard for video creatives |
-| **IFA** | Identifier For Advertising — the resettable device ad ID |
-| **GDPR / COPPA / GPP** | Privacy frameworks; their signals travel in the `regs` object |
-| **Supply chain (`schain`)** | The chain of intermediaries between publisher and buyer, used to detect fraud |
-| **`tmax`** | Maximum time in milliseconds the exchange will wait for a bid |
-| **No-bid (`nbr`)** | A coded reason explaining why the DSP declined to bid |
-
----
-
-## 15. Limitations and security notes
-
-Being clear about what a tool does *not* do is part of good documentation.
-
-### Functional limitations
-
-- **Heuristics, not certainty.** CTV scoring and version inference are educated guesses from circumstantial evidence. The app always shows its reasoning so you can override it.
-- **Single modes analyze the first object only.** Given a JSON array in Request/Response/Compare mode, only the first object is used. Use **Batch mode** for the whole set.
-- **Batch is capped at 1,000 entries** per run. Beyond that it analyzes the first 1,000 and says so.
-- **No exchange-specific knowledge.** Every SSP has its own `ext` conventions; the analyzer only reads standard OpenRTB fields.
-- **2.5/2.6 focused.** OpenRTB 3.0 (a fundamentally different structure) is not supported.
-- **Nothing is persisted.** Close the tab and the analysis is gone. Use the export buttons to keep results.
-
-### Security notes
-
-This app is designed to run **locally, on `127.0.0.1`, for a single trusted user**. Under that assumption it is fine.
-
-### What is protected
-
-1. **SSRF filtering on the URL fetcher.** [url_fetcher.py](app/services/url_fetcher.py) resolves the hostname before connecting and refuses any host that resolves to a private, loopback, link-local, reserved, multicast, or unspecified address — including IPv4-mapped and 6to4-wrapped forms of those, which are the usual bypass tricks. That covers `127.0.0.1`, `10/8`, `172.16/12`, `192.168/16`, `::1`, `fc00::/7`, and the cloud metadata endpoint at `169.254.169.254`. Redirects are followed **manually**, capped at 3 hops, with every hop re-checked — auto-following would let a public host bounce the fetch straight into the private network the filter exists to protect.
-2. **Upload size cap.** Uploads are read in 64 KB chunks and rejected past 5 MB (`MAX_UPLOAD_BYTES`), so an oversized file is refused without ever being fully held in memory.
-3. **Fetch size cap** of 2 MB (`MAX_FETCH_BYTES`) with an 8-second timeout.
-4. **Batch cap** of 1,000 entries per run.
-5. **Output escaping.** Batch and comparison results are payload-derived text, so everything interpolated into the DOM or into an exported HTML report is HTML-escaped, and CSV cells are RFC 4180 quoted.
-
-### Residual risks
-
-1. **DNS rebinding is not fully mitigated.** The address check happens at resolve time; a hostile DNS server could in principle return a public address for the check and a private one for the connection. Closing this properly means pinning the validated IP for the connection and passing the original `Host` header. It is not worth the complexity for a localhost tool, but it is the honest limitation of the current approach.
-2. **No authentication, no rate limiting, no CSRF protection.** There is no login and no origin checking on the POST endpoints. Acceptable for a local tool, not for a shared one.
-3. **CORS is not configured**, which is the correct default — adding a permissive `CORSMiddleware` later would combine badly with point 2.
-4. **Bid requests contain personal data** — IP addresses, device IDs, geolocation, sometimes user IDs. Real production payloads may fall under GDPR/CCPA. Prefer the bundled samples or anonymised data when learning, and do not paste live traffic into any hosted tool.
-
-**Bottom line:** run it with the default `--host 127.0.0.1`. The SSRF hole is closed, but authentication and rate limiting would still be needed before putting this on a shared network.
-
----
-
-## 16. Ideas for extending the project
-
-Roughly ordered from beginner to advanced:
-
-**Good first tasks**
-
-1. **Add a device type.** OpenRTB defines more `devicetype` values than `DEVICE_TYPE_LABELS` currently maps. Add one, then write a test.
-2. **Add a validation rule.** Pick a `SHOULD` from the 2.6 spec (see `docs/openrtb_2_6_extracted.txt`) and implement it in `_request_warnings()`.
-3. **Add a sample payload.** Build a DOOH (digital out-of-home) or rewarded-video request, drop it in `sample_data/`, and it appears in the UI automatically — `/samples` globs the directory.
-
-**Intermediate**
-
-4. ~~**Batch mode.**~~ Done — see [section 10](#10-the-user-interface-tab-by-tab).
-5. **A CLI.** Import `analyze_input` or `analyze_entries` in a `click` or `argparse` script so the analyzer works in a terminal pipeline. The services layer already makes this straightforward.
-6. ~~**Fix the SSRF.**~~ Done — see [section 15](#15-limitations-and-security-notes).
-7. **Analysis history.** Persist recent analyses to SQLite and add a "recent" panel.
-8. **Batch comparison.** Pair requests to responses by auction id across two logs and run the comparison engine over every pair, so you get a "why did we lose" report for a whole day of traffic.
-
-**Advanced**
-
-9. **VAST inspection.** When `bid.adm` contains VAST XML, parse it and validate the media files, MIME types, bitrates, tracking events, and wrapper chain against the request's constraints. The highest-value item left for anyone working in CTV.
-10. **Diff mode.** Compare two bid requests side by side and highlight what changed — invaluable for debugging "it worked yesterday."
-11. **Exchange adapters.** Pluggable modules that understand vendor-specific `ext` fields (Magnite, PubMatic, Index Exchange). High maintenance for narrow payoff.
-12. **OpenRTB 3.0 support.** A genuinely different object model (layered `AdCOM`). Near-zero production adoption today, so treat this as a learning exercise rather than a practical need.
-
----
-
-## Reference material
-
-- [IAB Tech Lab — OpenRTB specifications](https://iabtechlab.com/standards/openrtb/)
-- `docs/openrtb_2_6_extracted.txt` — spec text bundled with this repo
-- [FastAPI documentation](https://fastapi.tiangolo.com/)
-- The built-in tutorial at <http://127.0.0.1:8000/tutorial>
+*Happy Analyzing! If you have any questions or ideas for improvements, explore the source code in `app/services/`!*

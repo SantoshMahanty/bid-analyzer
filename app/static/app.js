@@ -138,6 +138,18 @@ function switchMode(mode) {
     document.querySelectorAll(".mode-content").forEach(el => el.style.display = "none");
     document.getElementById(`input-${mode}`).style.display = "block";
 
+    // Dynamic layout switching per mode
+    const contentEl = document.querySelector(".content");
+    if (contentEl) {
+        if (mode === "compare") {
+            contentEl.classList.remove("split-layout");
+            contentEl.classList.add("compare-layout");
+        } else {
+            contentEl.classList.remove("compare-layout");
+            contentEl.classList.add("split-layout");
+        }
+    }
+
     // Compare mode has its own textareas; carry over what the user already
     // typed so switching to it doesn't mean re-pasting. Never overwrites.
     if (mode === "compare") {
@@ -161,46 +173,113 @@ async function loadSamples() {
         const res = await fetch("/samples");
         const data = await res.json();
         state.samples = data.samples || [];
-
-        populateSamples("request-sample", "request");
-        populateSamples("response-sample", "response");
-        populateSamples("compare-request-sample", "request");
-        populateSamples("compare-response-sample", "response");
+        populateSamples();
     } catch (err) {
         showStatus("Failed to load samples", "error");
     }
 }
 
-function populateSamples(selectId, kind) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
+function populateSamples() {
+    ["request", "response"].forEach(kind => {
+        const grid = document.getElementById(`samples-${kind}-grid`);
+        if (!grid) return;
 
-    const samples = state.samples.filter(s => s.kind === kind);
-    select.innerHTML = '<option value="">Choose Sample...</option>';
-    samples.forEach(s => {
-        const opt = document.createElement("option");
-        opt.value = s.name;
-        opt.textContent = s.name;
-        select.appendChild(opt);
+        const samples = state.samples.filter(s => s.kind === kind);
+        if (!samples.length) {
+            grid.innerHTML = `<div style="color:var(--text-muted); padding:1rem;">No samples found.</div>`;
+            return;
+        }
+
+        grid.innerHTML = "";
+        samples.forEach(s => {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className = "sample-card btn btn-secondary";
+            card.style.display = "inline-flex";
+            card.style.alignItems = "center";
+            card.style.gap = "0.5rem";
+            card.style.padding = "0.75rem 1.25rem";
+            card.style.margin = "0.35rem";
+            card.innerHTML = `${icon("file")} <span>${s.name}</span>`;
+
+            card.addEventListener("click", () => {
+                const textareaId = `${kind}-raw`;
+                const ta = document.getElementById(textareaId);
+                if (ta) {
+                    ta.value = s.content;
+                    ta.dispatchEvent(new Event("input"));
+                }
+                // Switch back to editor tab
+                const editorTab = document.querySelector(`.input-method-tab[data-method="paste"][data-mode="${kind}"]`);
+                if (editorTab) editorTab.click();
+
+                showStatus(`Loaded ${s.name}`, "info");
+            });
+
+            grid.appendChild(card);
+        });
     });
 }
 
-function loadSample(mode) {
-    const selectId = `${mode}-sample`;
-    const selectEl = document.getElementById(selectId);
-    if (!selectEl.value) {
-        showStatus("Select a sample first", "info");
+function setupInputMethodTabs() {
+    document.querySelectorAll(".input-method-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            const method = tab.dataset.method;
+            const mode = tab.dataset.mode;
+            if (!method || !mode) return;
+
+            // Deactivate sibling tabs
+            const parent = tab.closest(".input-method-tabs");
+            if (parent) {
+                parent.querySelectorAll(".input-method-tab").forEach(t => t.classList.remove("active"));
+            }
+            tab.classList.add("active");
+
+            // Toggle method content views
+            const modeContent = document.getElementById(`input-${mode}`);
+            if (modeContent) {
+                modeContent.querySelectorAll(".input-method-content").forEach(c => c.style.display = "none");
+                const targetContent = document.getElementById(`method-${method}-${mode}`);
+                if (targetContent) {
+                    targetContent.style.display = "block";
+                    targetContent.classList.add("active");
+                }
+            }
+        });
+    });
+}
+
+async function fetchURL(mode) {
+    const urlInput = document.getElementById(`${mode}-url`);
+    if (!urlInput || !urlInput.value.trim()) {
+        showStatus("Please enter a valid HTTP/HTTPS URL", "error");
         return;
     }
 
-    const sample = state.samples.find(s => s.name === selectEl.value);
-    if (!sample) return;
+    const url = urlInput.value.trim();
+    showStatus(`Fetching content from URL...`, "info");
 
-    const textareaId = `${mode}-raw`;
-    const _ta = document.getElementById(textareaId);
-    _ta.value = sample.content;
-    _ta.dispatchEvent(new Event("input"));
-    showStatus(`Loaded ${sample.name}`, "info");
+    try {
+        const res = await postJson("/fetch/url", { url });
+        if (res.raw_text) {
+            const target = document.getElementById(`${mode}-raw`);
+            if (target) {
+                target.value = res.raw_text;
+                target.dispatchEvent(new Event("input"));
+            }
+            // Switch back to editor tab
+            const editorTab = document.querySelector(`.input-method-tab[data-method="paste"][data-mode="${mode}"]`);
+            if (editorTab) editorTab.click();
+
+            showStatus(`Fetched content from URL successfully`, "success");
+        } else if (res.error) {
+            showStatus(`Fetch error: ${res.error}`, "error");
+        } else {
+            showStatus("Failed to fetch content from URL", "error");
+        }
+    } catch (err) {
+        showStatus(`Fetch error: ${err.message}`, "error");
+    }
 }
 
 function handleFileUpload(e, mode) {
@@ -338,42 +417,42 @@ function displayResults(report) {
         const ctvMax = det.ctv_score_max || 14;
         const ctvPercent = Math.min((ctvScore / ctvMax) * 100, 100);
         overviewHtml += `
-            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);'>
-                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
+            <div class='hero-card request'>
+                <div class='hero-head'>
                     <div>
-                        <h3 style='margin: 0; font-size: 1.5rem;'>${icon('list')} Bid Request</h3>
-                        <p style='margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;'>${report.request.summary?.ad_format || "Standard"} • ${report.request.summary?.environment_guess || "Web"}</p>
+                        <h3 class='hero-title'>${icon('list')} Bid Request</h3>
+                        <p class='hero-sub'>${esc(report.request.summary?.ad_format || "Standard")} • ${esc(report.request.summary?.environment_guess || "Web")}</p>
                     </div>
-                    <div style='text-align: right;'>
-                        <div style='font-size: 2rem; font-weight: 800;'>${report.request.summary?.impression_count || 1}</div>
-                        <div style='font-size: 0.85rem; opacity: 0.9;'>Impressions</div>
-                    </div>
-                </div>
-
-                <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
-                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px;'>
-                        <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Request ID</div>
-                        <div style='font-size: 0.85rem; word-break: break-all;'>${(report.request.summary?.request_id || "—").substring(0, 12)}</div>
-                    </div>
-                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px;'>
-                        <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Devices</div>
-                        <div style='font-size: 0.85rem;'>${report.request.summary?.device_type_count || 1} types</div>
-                    </div>
-                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px;'>
-                        <div style='font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;'>Publishers</div>
-                        <div style='font-size: 0.85rem;'>${report.request.summary?.publisher_count || 1}</div>
+                    <div class='hero-figure'>
+                        <div class='hero-num'>${report.request.summary?.impression_count || 1}</div>
+                        <div class='hero-caption'>Impressions</div>
                     </div>
                 </div>
 
-                <div style='margin-top: 1.5rem;'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <span style='font-size: 0.9rem;'>${icon('target')} CTV Confidence Score</span>
-                        <span style='font-size: 1rem; font-weight: 700;'>${ctvScore}/${ctvMax}</span>
+                <div class='hero-tiles'>
+                    <div class='hero-tile'>
+                        <div class='hero-tile-label'>Request ID</div>
+                        <div class='hero-tile-val'>${esc((report.request.summary?.request_id || "—").substring(0, 12))}</div>
                     </div>
-                    <div style='background: rgba(255,255,255,0.2); border-radius: 10px; height: 10px; overflow: hidden;'>
-                        <div style='background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444); width: ${ctvPercent}%; height: 100%; transition: width 0.3s;'></div>
+                    <div class='hero-tile'>
+                        <div class='hero-tile-label'>Devices</div>
+                        <div class='hero-tile-val'>${report.request.summary?.device_type_count || 1} types</div>
                     </div>
-                    <div style='font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8;'>${det.ctv_label || "Analyzing..."}</div>
+                    <div class='hero-tile'>
+                        <div class='hero-tile-label'>Publishers</div>
+                        <div class='hero-tile-val'>${report.request.summary?.publisher_count || 1}</div>
+                    </div>
+                </div>
+
+                <div class='hero-meter'>
+                    <div class='hero-meter-head'>
+                        <span>${icon('target')} CTV Confidence Score</span>
+                        <strong>${ctvScore}/${ctvMax}</strong>
+                    </div>
+                    <div class='hero-track' role='img' aria-label='CTV confidence ${ctvScore} of ${ctvMax}'>
+                        <div class='hero-fill' style='width: ${ctvPercent}%;'></div>
+                    </div>
+                    <div class='hero-note'>${esc(det.ctv_label || "Analyzing...")}</div>
                 </div>
             </div>`;
     }
@@ -382,37 +461,37 @@ function displayResults(report) {
         const bidCount = report.response.summary?.bid_count || 0;
         const seatCount = report.response.summary?.seat_count || 0;
         overviewHtml += `
-            <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);'>
-                <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;'>
+            <div class='hero-card response'>
+                <div class='hero-head'>
                     <div>
-                        <h3 style='margin: 0; font-size: 1.5rem;'>${icon('inbox')} Bid Response</h3>
-                        <p style='margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;'>${bidCount > 0 ? "Active Bids" : "No Bids"} • ${seatCount} Seat${seatCount !== 1 ? "s" : ""}</p>
+                        <h3 class='hero-title'>${icon('inbox')} Bid Response</h3>
+                        <p class='hero-sub'>${bidCount > 0 ? "Active Bids" : "No Bids"} • ${seatCount} Seat${seatCount !== 1 ? "s" : ""}</p>
                     </div>
-                    <div style='text-align: right;'>
-                        <div style='font-size: 2rem; font-weight: 800;'>$${report.response.summary?.max_bid_price || "0"}</div>
-                        <div style='font-size: 0.85rem; opacity: 0.9;'>Max Bid</div>
-                    </div>
-                </div>
-
-                <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;'>
-                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px; text-align: center;'>
-                        <div style='font-size: 1.5rem; font-weight: 700;'>${bidCount}</div>
-                        <div style='font-size: 0.75rem; opacity: 0.9;'>Total Bids</div>
-                    </div>
-                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px; text-align: center;'>
-                        <div style='font-size: 1.5rem; font-weight: 700;'>${seatCount}</div>
-                        <div style='font-size: 0.75rem; opacity: 0.9;'>Seat Count</div>
-                    </div>
-                    <div style='background: rgba(0,0,0,0.18); padding: 1rem; border-radius: 10px; text-align: center;'>
-                        <div style='font-size: 1.5rem; font-weight: 700;'>${report.response.summary?.avg_bid_price ? "$" + report.response.summary.avg_bid_price : "—"}</div>
-                        <div style='font-size: 0.75rem; opacity: 0.9;'>Avg Bid</div>
+                    <div class='hero-figure'>
+                        <div class='hero-num'>$${esc(String(report.response.summary?.max_bid_price || "0"))}</div>
+                        <div class='hero-caption'>Max Bid</div>
                     </div>
                 </div>
 
-                <div style='margin-top: 1.5rem;'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <span style='font-size: 0.9rem;'>${icon('layout')} Response Health</span>
-                        <span style='background: ${bidCount > 0 ? "rgba(74, 222, 128, 0.3)" : "rgba(239, 68, 68, 0.3)"}; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;'>${bidCount > 0 ? "Healthy" : "No Bids"}</span>
+                <div class='hero-tiles'>
+                    <div class='hero-tile center'>
+                        <div class='hero-tile-num'>${bidCount}</div>
+                        <div class='hero-tile-label'>Total Bids</div>
+                    </div>
+                    <div class='hero-tile center'>
+                        <div class='hero-tile-num'>${seatCount}</div>
+                        <div class='hero-tile-label'>Seat Count</div>
+                    </div>
+                    <div class='hero-tile center'>
+                        <div class='hero-tile-num'>${report.response.summary?.avg_bid_price ? "$" + esc(String(report.response.summary.avg_bid_price)) : "—"}</div>
+                        <div class='hero-tile-label'>Avg Bid</div>
+                    </div>
+                </div>
+
+                <div class='hero-meter'>
+                    <div class='hero-meter-head'>
+                        <span>${icon('layout')} Response Health</span>
+                        <span class='hero-pill'>${bidCount > 0 ? "Healthy" : "No Bids"}</span>
                     </div>
                 </div>
             </div>`;

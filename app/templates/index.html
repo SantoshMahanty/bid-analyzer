@@ -4,7 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bid Analyzer - OpenRTB Inspector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css?v={{ asset_v }}">
+    <!--
+      Theme is resolved before first paint. :root carries the dark palette,
+      so a light-preference machine used to flash dark until app.js ran its
+      initializeTheme(). Same precedence as applyTheme(), so the two agree.
+    -->
+    <script>
+        (function () {
+            var saved = null;
+            try { saved = localStorage.getItem('theme'); } catch (e) { /* private mode */ }
+            var dark = saved ? saved === 'dark'
+                             : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        })();
+    </script>
 </head>
 <body>
     <!--
@@ -174,7 +191,7 @@
             </div>
 
             <!-- Content Area -->
-            <div class="content">
+            <div class="content split-layout">
                 <!-- Input Section -->
                 <div class="section input-section">
                     <div class="section-header">
@@ -183,145 +200,112 @@
 
                     <!-- Request Mode -->
                     <div class="mode-content active" id="input-request">
-                        <div class="input-method-tabs">
-                            <button class="input-method-tab active" data-method="paste" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-braces"/></svg> Paste</button>
-                            <button class="input-method-tab" data-method="upload" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
-                            <button class="input-method-tab" data-method="url" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> URL</button>
-                            <button class="input-method-tab" data-method="samples" data-mode="request"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Samples</button>
-                        </div>
+                        <div class="input-container">
+                            <div class="editor-toolbar">
+                                <label class="input-label" for="request-raw"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg> Bid Request JSON</label>
+                                <div class="editor-actions">
+                                    <button class="btn btn-small" type="button" onclick="prettifyJSON('request-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
+                                    <button class="btn btn-small" type="button" onclick="document.getElementById('request-file').click()" title="Upload file"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                                    <button class="btn btn-small" type="button" onclick="copyEditor('request-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                    <button class="btn btn-small" type="button" onclick="clearEditor('request-raw')" title="Clear editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                </div>
+                            </div>
 
-                        <!-- Paste -->
-                        <div class="input-method-content active" id="method-paste-request">
-                            <div class="input-container">
-                                <!-- Unified editor toolbar: all editor actions in one row above
-                                     the code, instead of scattered across the card. -->
-                                <div class="editor-toolbar">
-                                    <label class="input-label" for="request-raw">Bid Request JSON</label>
-                                    <div class="editor-actions">
-                                        <button class="btn btn-small" type="button" onclick="prettifyJSON('request-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
-                                        <button class="btn btn-small" type="button" onclick="copyEditor('request-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
-                                        <button class="btn btn-small" type="button" onclick="loadFirstSample('request')" title="Load a sample payload"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Sample</button>
-                                        <button class="btn btn-small" type="button" onclick="clearEditor('request-raw')" title="Clear this editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                            <!-- Quick Utility Bar before Request Box -->
+                            <div class="quick-tools-bar">
+                                <div class="samples-pill-row">
+                                    <span class="tools-label">Load Sample:</span>
+                                    <div class="samples-grid" id="samples-request-grid"></div>
+                                </div>
+                                <div class="url-fetch-row">
+                                    <span class="tools-label">Fetch URL:</span>
+                                    <div class="url-input-group">
+                                        <input id="request-url" type="url" class="select-input" placeholder="https://api.example.com/request.json">
+                                        <button class="btn btn-small btn-primary" type="button" onclick="fetchURL('request')"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> Fetch</button>
                                     </div>
                                 </div>
-                                <div class="editor-shell">
-                                    <div class="editor-gutter" aria-hidden="true"></div>
-                                    <textarea id="request-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","imp":[...]}'></textarea>
-                                </div>
-                                <div class="input-hint">Press Ctrl+Enter to analyze</div>
                             </div>
-                        </div>
 
-                        <!-- Upload -->
-                        <div class="input-method-content" id="method-upload-request">
-                            <div class="dropzone" id="dropzone-request">
-                                <div class="dropzone-content">
-                                    <div class="dropzone-icon"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-upload"/></svg></div>
-                                    <div class="dropzone-text">Drop JSON file here or click to browse</div>
-                                    <div class="dropzone-hint">Accepts .json, .txt, .log files</div>
-                                </div>
-                                <input id="request-file" type="file" style="display:none;" accept=".json,.txt,.log">
+                            <div class="editor-shell">
+                                <div class="editor-gutter" aria-hidden="true"></div>
+                                <textarea id="request-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","imp":[...]}'></textarea>
                             </div>
-                        </div>
-
-                        <!-- URL -->
-                        <div class="input-method-content" id="method-url-request">
-                            <div class="input-container">
-                                <label class="input-label" for="request-url">Fetch from URL</label>
-                                <div class="url-input-group">
-                                    <input id="request-url" type="url" class="select-input" placeholder="https://api.example.com/request.json">
-                                    <button class="btn btn-primary" type="button" onclick="fetchURL('request')"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> Fetch</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Samples -->
-                        <div class="input-method-content" id="method-samples-request">
-                            <div class="samples-grid" id="samples-request-grid"></div>
+                            <input id="request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                         </div>
                     </div>
 
                     <!-- Response Mode -->
                     <div class="mode-content" id="input-response" style="display:none;">
-                        <div class="input-method-tabs">
-                            <button class="input-method-tab active" data-method="paste" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-braces"/></svg> Paste</button>
-                            <button class="input-method-tab" data-method="upload" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
-                            <button class="input-method-tab" data-method="url" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> URL</button>
-                            <button class="input-method-tab" data-method="samples" data-mode="response"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Samples</button>
-                        </div>
+                        <div class="input-container">
+                            <div class="editor-toolbar">
+                                <label class="input-label" for="response-raw"><svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg> Bid Response JSON</label>
+                                <div class="editor-actions">
+                                    <button class="btn btn-small" type="button" onclick="prettifyJSON('response-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
+                                    <button class="btn btn-small" type="button" onclick="document.getElementById('response-file').click()" title="Upload file"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                                    <button class="btn btn-small" type="button" onclick="copyEditor('response-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                    <button class="btn btn-small" type="button" onclick="clearEditor('response-raw')" title="Clear editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                </div>
+                            </div>
 
-                        <!-- Paste -->
-                        <div class="input-method-content active" id="method-paste-response">
-                            <div class="input-container">
-                                <div class="editor-toolbar">
-                                    <label class="input-label" for="response-raw">Bid Response JSON</label>
-                                    <div class="editor-actions">
-                                        <button class="btn btn-small" type="button" onclick="prettifyJSON('response-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
-                                        <button class="btn btn-small" type="button" onclick="copyEditor('response-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
-                                        <button class="btn btn-small" type="button" onclick="loadFirstSample('response')" title="Load a sample payload"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg> Sample</button>
-                                        <button class="btn btn-small" type="button" onclick="clearEditor('response-raw')" title="Clear this editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                            <!-- Quick Utility Bar before Response Box -->
+                            <div class="quick-tools-bar">
+                                <div class="samples-pill-row">
+                                    <span class="tools-label">Load Sample:</span>
+                                    <div class="samples-grid" id="samples-response-grid"></div>
+                                </div>
+                                <div class="url-fetch-row">
+                                    <span class="tools-label">Fetch URL:</span>
+                                    <div class="url-input-group">
+                                        <input id="response-url" type="url" class="select-input" placeholder="https://api.example.com/response.json">
+                                        <button class="btn btn-small btn-primary" type="button" onclick="fetchURL('response')"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> Fetch</button>
                                     </div>
                                 </div>
-                                <div class="editor-shell">
-                                    <div class="editor-gutter" aria-hidden="true"></div>
-                                    <textarea id="response-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
-                                </div>
-                                <div class="input-hint">Press Ctrl+Enter to analyze</div>
                             </div>
-                        </div>
 
-                        <!-- Upload -->
-                        <div class="input-method-content" id="method-upload-response">
-                            <div class="dropzone" id="dropzone-response">
-                                <div class="dropzone-content">
-                                    <div class="dropzone-icon"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-upload"/></svg></div>
-                                    <div class="dropzone-text">Drop JSON file here or click to browse</div>
-                                    <div class="dropzone-hint">Accepts .json, .txt, .log files</div>
-                                </div>
-                                <input id="response-file" type="file" style="display:none;" accept=".json,.txt,.log">
+                            <div class="editor-shell">
+                                <div class="editor-gutter" aria-hidden="true"></div>
+                                <textarea id="response-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","seatbid":[...]}'></textarea>
                             </div>
-                        </div>
-
-                        <!-- URL -->
-                        <div class="input-method-content" id="method-url-response">
-                            <div class="input-container">
-                                <label class="input-label" for="response-url">Fetch from URL</label>
-                                <div class="url-input-group">
-                                    <input id="response-url" type="url" class="select-input" placeholder="https://api.example.com/response.json">
-                                    <button class="btn btn-primary" type="button" onclick="fetchURL('response')"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg> Fetch</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Samples -->
-                        <div class="input-method-content" id="method-samples-response">
-                            <div class="samples-grid" id="samples-response-grid"></div>
+                            <input id="response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                         </div>
                     </div>
 
                     <!-- Compare Mode -->
                     <div class="mode-content" id="input-compare" style="display:none;">
                         <div class="compare-grid">
+                            <!-- Left: Request JSON -->
                             <div class="compare-card">
-                                <h3><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg> Request</h3>
+                                <div class="editor-toolbar">
+                                    <label class="input-label" for="compare-request-raw"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg> Bid Request JSON</label>
+                                    <div class="editor-actions">
+                                        <button class="btn btn-small" type="button" onclick="prettifyJSON('compare-request-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
+                                        <button class="btn btn-small" type="button" onclick="document.getElementById('compare-request-file').click()" title="Upload file"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                                        <button class="btn btn-small" type="button" onclick="copyEditor('compare-request-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                        <button class="btn btn-small" type="button" onclick="clearEditor('compare-request-raw')" title="Clear editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                    </div>
+                                </div>
                                 <div class="editor-shell">
                                     <div class="editor-gutter" aria-hidden="true"></div>
-                                    <textarea id="compare-request-raw" class="code-input" spellcheck="false" placeholder='Request JSON...'></textarea>
+                                    <textarea id="compare-request-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-ctv-001","imp":[...]}'></textarea>
                                 </div>
-                                <button class="btn btn-secondary" type="button" onclick="document.getElementById('compare-request-file').click()">
-                                    <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload
-                                </button>
                                 <input id="compare-request-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
+
+                            <!-- Right: Response JSON -->
                             <div class="compare-card">
-                                <h3><svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg> Response</h3>
+                                <div class="editor-toolbar">
+                                    <label class="input-label" for="compare-response-raw"><svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg> Bid Response JSON</label>
+                                    <div class="editor-actions">
+                                        <button class="btn btn-small" type="button" onclick="prettifyJSON('compare-response-raw')" title="Format JSON"><svg class="icon" aria-hidden="true"><use href="#i-wand"/></svg> Format</button>
+                                        <button class="btn btn-small" type="button" onclick="document.getElementById('compare-response-file').click()" title="Upload file"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
+                                        <button class="btn btn-small" type="button" onclick="copyEditor('compare-response-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                        <button class="btn btn-small" type="button" onclick="clearEditor('compare-response-raw')" title="Clear editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                    </div>
+                                </div>
                                 <div class="editor-shell">
                                     <div class="editor-gutter" aria-hidden="true"></div>
-                                    <textarea id="compare-response-raw" class="code-input" spellcheck="false" placeholder='Response JSON...'></textarea>
+                                    <textarea id="compare-response-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-ctv-001","seatbid":[...]}'></textarea>
                                 </div>
-                                <button class="btn btn-secondary" type="button" onclick="document.getElementById('compare-response-file').click()">
-                                    <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload
-                                </button>
                                 <input id="compare-response-file" type="file" style="display:none;" accept=".json,.txt,.log">
                             </div>
                         </div>
@@ -341,9 +325,9 @@
                             <div class="editor-toolbar">
                                 <label class="input-label" for="batch-raw">Payloads — JSON array or one object per line</label>
                                 <div class="editor-actions">
-                                    <button class="btn btn-small" type="button" onclick="copyEditor('batch-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
                                     <button class="btn btn-small" type="button" onclick="document.getElementById('batch-file').click()" title="Upload a log file"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Upload</button>
-                                    <button class="btn btn-small" type="button" onclick="clearEditor('batch-raw')" title="Clear this editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
+                                    <button class="btn btn-small" type="button" onclick="copyEditor('batch-raw')" title="Copy to clipboard"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg> Copy</button>
+                                    <button class="btn btn-small" type="button" onclick="clearEditor('batch-raw')" title="Clear editor"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear</button>
                                 </div>
                             </div>
                             <div class="editor-shell">
@@ -351,7 +335,6 @@
                                 <textarea id="batch-raw" class="code-input" spellcheck="false" placeholder='{"id":"req-1","imp":[...]}
 {"id":"req-2","imp":[...]}'></textarea>
                             </div>
-                            <div class="input-hint">Paste an exported log. Accepts a JSON array, newline-delimited JSON, or a single object.</div>
                             <input id="batch-file" type="file" style="display:none;" accept=".json,.jsonl,.ndjson,.txt,.log">
                         </div>
                     </div>
@@ -360,9 +343,6 @@
                     <div class="button-group">
                         <button id="analyze-btn" class="btn btn-primary btn-large">
                             <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg> Analyze Now
-                        </button>
-                        <button class="btn btn-ghost" type="button" onclick="clearInputs()">
-                            <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg> Clear
                         </button>
                     </div>
                 </div>
