@@ -402,10 +402,33 @@ async function postJson(url, body) {
     return res.json();
 }
 
+/* Every result panel, in tab order. */
+const RESULT_PANELS = [
+    "tab-overview", "tab-human", "tab-request", "tab-response", "tab-compare",
+    "tab-batch", "tab-signals", "tab-interview", "tab-warnings", "tab-raw"
+];
+
+/* Panels keep whatever the last run wrote into them, so a payload with no
+   response section used to leave the *previous* analysis's Response tab on
+   screen — stale numbers presented as if they belonged to the current
+   payload. Clearing up front also replaces the blank void you got from
+   clicking a tab this mode never fills. Each renderer overwrites the
+   placeholder for the panels it does populate. */
+function resetResultPanels(note) {
+    RESULT_PANELS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<div class='r-empty'>${esc(note)}</div>`;
+    });
+}
+
 function displayResults(report) {
     document.getElementById("results-placeholder").style.display = "none";
     document.getElementById("results-content").style.display = "block";
     document.getElementById("export-group").hidden = false;
+
+    resetResultPanels("Not applicable for this payload.");
+    document.getElementById("tab-batch").innerHTML =
+        "<div class='r-empty'>Only used in Batch mode.</div>";
 
     // Phase 3: Enhanced Overview with KPI Metrics Dashboard
     let overviewHtml = "<div style='display: grid; gap: 2rem;'>";
@@ -744,6 +767,11 @@ function displayBatchResults(report) {
     document.getElementById("results-content").style.display = "block";
     document.getElementById("export-group").hidden = false;
 
+    /* Same reason as displayResults(): without this, switching from a
+       single analysis into Batch left the old Request/Response tabs live
+       alongside the batch numbers. */
+    resetResultPanels("Not applicable in Batch mode. Use the Overview, Batch, and Warnings tabs.");
+
     const agg = report.aggregates || {};
     const rows = report.rows || [];
 
@@ -873,10 +901,8 @@ function displayBatchResults(report) {
     }
     document.getElementById("tab-warnings").innerHTML = warnHtml;
 
-    /* --- Tabs that carry no meaning for a batch ----------------------- */
-    const na = "<div class='r-empty'>Not applicable in Batch mode. Use the Overview, Batch, and Warnings tabs.</div>";
-    ["tab-human", "tab-request", "tab-response", "tab-compare", "tab-signals", "tab-interview"]
-        .forEach(id => { document.getElementById(id).innerHTML = na; });
+    /* Tabs that carry no meaning for a batch keep the placeholder written
+       by resetResultPanels() at the top of this function. */
 
     document.getElementById("tab-raw").innerHTML =
         `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${esc(JSON.stringify(report, null, 2))}</pre>`;
