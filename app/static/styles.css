@@ -3,7 +3,7 @@
    Left-aligned modes, side-by-side compare grid, full-width results.
    Google Fonts (Outfit, Plus Jakarta Sans, JetBrains Mono).
 
-   Section 12 onward holds the result-rendering primitives that app.js
+   Section 11 onward holds the result-rendering primitives that app.js
    emits at runtime. They live here rather than as inline styles so the
    generated panels follow the theme; deleting them silently unstyles
    every results tab, which is exactly what happened before this pass.
@@ -93,6 +93,15 @@
     --radius-full: 9999px;
 
     --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Layout metrics. --header-h is the offset the sticky results tab strip
+       parks below; syncHeaderOffset() in app.js overwrites it with the
+       header's measured height on load and on every resize, so the value
+       here is only the pre-script fallback. */
+    --page-max: 1560px;
+    --page-pad: 2rem;
+    --header-h: 70px;
+    --editor-max: 500px;
 }
 
 /* Light Mode Overrides
@@ -206,19 +215,33 @@ html, body {
     box-shadow: var(--shadow-md);
 }
 
+/* nowrap + a fixed min-height keeps this one row at every width. Left to
+   wrap, it grew to 121px on a 375px screen — 15% of the viewport spent on
+   chrome, and a moving target for the sticky offset the results tab strip
+   parks against. Everything inside shrinks or drops out instead. */
 .header-main {
-    max-width: 1480px;
+    max-width: var(--page-max);
     margin: 0 auto;
     display: flex;
+    flex-wrap: nowrap;
     justify-content: space-between;
     align-items: center;
-    padding: 0.85rem 2rem;
+    gap: 1rem;
+    min-height: 42px;
+    padding: 0.85rem var(--page-pad);
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 0.85rem;
+    min-width: 0;
+}
+
+.header-left .header-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .logo-icon {
@@ -261,6 +284,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex: 0 0 auto;
 }
 
 .header-btn, .header-link {
@@ -289,10 +313,10 @@ html, body {
    4. MAIN LAYOUT & LEFT-ALIGNED MODE SELECTOR
    -------------------------------------------------------------------------- */
 .main {
-    max-width: 1480px;
+    max-width: var(--page-max);
     margin: 0 auto;
     width: 100%;
-    padding: 1.75rem 2rem 3rem;
+    padding: 1.75rem var(--page-pad) 3rem;
     display: flex;
     flex-direction: column;
     gap: 1.75rem;
@@ -310,6 +334,37 @@ html, body {
     padding: 0.65rem 1.25rem;
     box-shadow: var(--shadow-md);
     flex-wrap: wrap;
+}
+
+/* Fills the right half of the mode bar, which was empty. Pushed to the far
+   edge so it reads as commentary on the selection, not another control. */
+.mode-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.kbd-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 0 0 auto;
+}
+
+kbd {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.25rem 0.4rem;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    background: var(--surface-alt);
+    border: 1px solid var(--surface-border);
+    border-bottom-width: 2px;
 }
 
 .selector-label {
@@ -362,15 +417,28 @@ html, body {
 /* --------------------------------------------------------------------------
    5. DYNAMIC CONTENT LAYOUTS
    -------------------------------------------------------------------------- */
+/* Input left, results right — but not 50/50. The results panel carries a
+   ten-tab strip, wide batch tables and three-across tiles, while the input
+   panel only has to hold a code editor. At 1fr 1fr the tab strip overflowed
+   by 732px (more of it hidden than visible) and every result grid collapsed
+   to one column. 5:7 gives the analysis the room it actually needs. */
 .content.split-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     gap: 1.75rem;
     align-items: start;
     width: 100%;
 }
 
-@media (max-width: 1024px) {
+/* Between 1180 and 1400 the 5:7 split squeezes the editor toolbar into two
+   rows, so the tilt eases off before the columns stack. */
+@media (max-width: 1400px) {
+    .content.split-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    }
+}
+
+@media (max-width: 1180px) {
     .content.split-layout {
         grid-template-columns: 1fr;
     }
@@ -423,7 +491,7 @@ html, body {
     width: 100%;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1180px) {
     .compare-grid {
         grid-template-columns: 1fr;
     }
@@ -449,44 +517,30 @@ html, body {
 /* --------------------------------------------------------------------------
    7. INPUT TABS & CODE EDITOR TOOLBAR
    -------------------------------------------------------------------------- */
-.input-method-tabs {
-    display: flex;
-    gap: 0.4rem;
-    border-bottom: 1px solid var(--surface-border);
-    padding-bottom: 0.75rem;
-}
-
-.input-method-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 1rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.input-method-tab:hover {
-    color: var(--text-primary);
-    background: var(--surface-alt);
-}
-
-.input-method-tab.active {
-    color: var(--primary-light);
-    background: rgba(99, 102, 241, 0.12);
-    border-color: rgba(99, 102, 241, 0.3);
-}
-
 /* Editor Toolbar & Code Area */
 .input-container {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+}
+
+/* One seamless unit: source strip → toolbar → code → status bar. The rows
+   used to be separate blocks inside a `gap: 0.75rem` column while still
+   declaring `border-bottom: none`, so each rendered as an open-bottomed box
+   floating above the next. Radii are applied to the first and last child so
+   the stack works with or without the optional strips. */
+.editor-stack {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-md);
+}
+
+.editor-stack > :first-child {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.editor-stack > :last-child {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .editor-toolbar {
@@ -497,27 +551,38 @@ html, body {
     flex-wrap: wrap;
     background: var(--surface-alt);
     padding: 0.6rem 1rem;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
     border: 1px solid var(--surface-border);
     border-bottom: none;
 }
 
-/* Quick Utility Bar before Editor Box */
-.quick-tools-bar {
+/* Where the payload comes from: samples, a URL, or (batch) the entry type.
+   One row rather than the previous two stacked rows, which pushed the code
+   area 250px below the heading that named it. */
+.source-strip {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.6rem 1.25rem;
+    flex-wrap: wrap;
     background: var(--toolbar-bg);
     border: 1px solid var(--surface-border);
     border-bottom: none;
-    padding: 0.55rem 0.85rem;
+    padding: 0.5rem 1rem;
 }
 
-.samples-pill-row, .url-fetch-row {
+.source-group {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.source-url {
+    flex: 1 1 240px;
+}
+
+.source-note {
+    font-size: 0.78rem;
+    color: var(--text-muted);
 }
 
 .tools-label {
@@ -527,7 +592,7 @@ html, body {
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
-    min-width: 85px;
+    flex: 0 0 auto;
 }
 
 .samples-grid {
@@ -631,11 +696,18 @@ html, body {
     color: var(--text-primary);
 }
 
+/* max-height matters here, not just on the textarea. The shell is a flex
+   row and the gutter is a plain block, so the gutter's full content height
+   set the row height: a 118-line payload produced a 2505px gutter and blew
+   the whole input card out to 2930px while the textarea sat capped at 500.
+   Capping the shell to the same limit lets the gutter overflow and scroll
+   in step with the textarea instead of driving the layout. */
 .editor-shell {
     display: flex;
+    position: relative;
+    max-height: var(--editor-max);
     background: var(--bg-app);
     border: 1px solid var(--surface-border);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
     overflow: hidden;
     transition: var(--transition);
 }
@@ -643,6 +715,41 @@ html, body {
 .editor-shell:focus-within {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Invalid JSON tints the whole frame, not just the status line, so the
+   error is visible while the eye is still on the code. */
+.editor-shell.has-error {
+    border-color: var(--fail-border);
+}
+
+.editor-shell.has-error:focus-within {
+    box-shadow: 0 0 0 3px var(--fail-bg);
+}
+
+/* Drag & drop. The handlers used to target #dropzone-* elements that no
+   longer exist in the template, so dropping a file did nothing at all;
+   they now target the editor itself, which is where a user aims. */
+.editor-shell.drag-over {
+    border-color: var(--primary);
+    border-style: dashed;
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.editor-shell.drag-over::after {
+    content: "Drop file to load";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--primary-light);
+    background: var(--bg-app);
+    opacity: 0.92;
+    pointer-events: none;
 }
 
 .editor-gutter {
@@ -657,6 +764,9 @@ html, body {
     user-select: none;
     min-width: 42px;
     white-space: pre;
+    /* Clipped, then scrolled to match the textarea by renderGutter(). */
+    overflow: hidden;
+    flex: 0 0 auto;
 }
 
 /* The line number the JSON parser blamed. */
@@ -697,36 +807,36 @@ html, body {
     gap: 0.35rem;
 }
 
-/* Dropzone styling */
-.dropzone {
-    border: 2px dashed var(--surface-border);
-    border-radius: var(--radius-lg);
-    padding: 3.5rem 1.5rem;
-    text-align: center;
-    cursor: pointer;
+/* Editor status bar, appended after .editor-shell by setupJSONValidation().
+   It had no styling at all, so "✗ Unexpected token…" rendered as loose body
+   text under the panel. As the last row of the stack it now reads as the
+   editor's own status line, and it always says something — line and size
+   counts when the JSON is fine, the failing line when it isn't. */
+.json-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    line-height: 1.5;
     background: var(--surface-alt);
-    transition: var(--transition);
-}
-
-.dropzone:hover {
-    border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.06);
-}
-
-.dropzone-icon {
-    margin-bottom: 0.75rem;
-    color: var(--primary);
-}
-
-.dropzone-text {
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.dropzone-hint {
-    font-size: 0.82rem;
+    border: 1px solid var(--surface-border);
+    border-top: none;
     color: var(--text-muted);
-    margin-top: 0.35rem;
+    word-break: break-word;
+}
+
+.json-status.valid {
+    background: var(--pass-bg);
+    border-color: var(--pass-border);
+    color: var(--pass-fg);
+}
+
+.json-status.invalid {
+    background: var(--fail-bg);
+    border-color: var(--fail-border);
+    color: var(--fail-fg);
 }
 
 /* --------------------------------------------------------------------------
@@ -796,8 +906,10 @@ html, body {
     color: var(--text-primary);
 }
 
+/* 0.65rem, not 0.75rem: the four editor actions plus their label came to
+   525px in a 522px toolbar, so the row wrapped for the sake of 3px. */
 .btn-small {
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0.65rem;
     font-size: 0.78rem;
     border-radius: var(--radius-sm);
 }
@@ -810,7 +922,10 @@ html, body {
 }
 
 /* Sticky action bar. Analyse sits below a 280px+ textarea, so without this
-   a real payload has to be scrolled past before it can be submitted. */
+   a real payload has to be scrolled past before it can be submitted. The
+   negative inline margins pull it out to the panel edges — at the section's
+   1.75rem padding it otherwise left a gutter each side that content scrolled
+   through, so the bar looked detached from the card it belongs to. */
 .button-group {
     position: sticky;
     bottom: 0;
@@ -819,8 +934,9 @@ html, body {
     justify-content: center;
     align-items: center;
     gap: 1rem;
-    padding: 0.85rem 0;
-    margin-top: 0.5rem;
+    padding: 0.85rem 1.75rem;
+    margin: 0.5rem -1.75rem -1.75rem;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
     background: var(--surface);
     border-top: 1px solid var(--surface-border);
 }
@@ -828,9 +944,11 @@ html, body {
 /* --------------------------------------------------------------------------
    9. RESULTS SECTION (FULL-WIDTH DASHBOARD)
    -------------------------------------------------------------------------- */
+/* No margin-top: in a `align-items: start` grid it pushed this card 16px
+   below the input card it sits beside, so the two panel headings never
+   lined up. */
 .results-section {
     width: 100%;
-    margin-top: 1rem;
 }
 
 .results-placeholder {
@@ -841,22 +959,64 @@ html, body {
     min-height: 280px;
     color: var(--text-muted);
     text-align: center;
-    gap: 1rem;
+    gap: 0.5rem;
+    padding: 1rem 0;
 }
 
 .placeholder-icon {
-    font-size: 3rem;
     color: var(--primary);
-    opacity: 0.5;
+    opacity: 0.55;
+    margin-bottom: 0.5rem;
 }
 
-/* Results Tab Bar */
+.placeholder-title {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.placeholder-sub {
+    font-size: 0.9rem;
+}
+
+.placeholder-steps {
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+.placeholder-steps li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+    color: var(--text-secondary);
+}
+
+.placeholder-steps strong { color: var(--text-primary); }
+.placeholder-steps .icon { color: var(--primary-light); }
+
+/* Results Tab Bar. Sticks below the page header so a long result list can be
+   scrolled without losing the way back to the other tabs. The negative
+   inline margins let the sticky background span the full card width instead
+   of leaving the padding column transparent. */
 .results-tabs {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.3rem;
     overflow-x: auto;
-    padding-bottom: 0.5rem;
-    margin-bottom: 1.25rem;
+    position: sticky;
+    top: var(--header-h);
+    z-index: 6;
+    padding: 0.35rem 1.75rem 0.5rem;
+    margin: -0.35rem -1.75rem 1.25rem;
+    background: var(--surface);
     border-bottom: 1px solid var(--surface-border);
     scrollbar-width: thin;
 }
@@ -864,19 +1024,24 @@ html, body {
 .tab-button {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.15rem;
+    gap: 0.45rem;
+    padding: 0.55rem 0.8rem;
     border-radius: var(--radius-md);
     border: none;
     background: transparent;
     color: var(--text-secondary);
     font-family: var(--font-heading);
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
     transition: var(--transition);
 }
+
+/* Tabs the current run cannot fill are removed rather than left to open a
+   "Not applicable" panel. Explicit, because the inline-flex above would
+   otherwise beat the UA [hidden] rule. */
+.tab-button[hidden] { display: none; }
 
 .tab-button:hover {
     color: var(--text-primary);
@@ -1010,49 +1175,7 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   10. HERO KPI DASHBOARD CARDS
-   -------------------------------------------------------------------------- */
-.kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-}
-
-.kpi-card {
-    background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    box-shadow: var(--shadow-sm);
-}
-
-.kpi-title {
-    font-family: var(--font-heading);
-    font-size: 0.75rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-}
-
-.kpi-value {
-    font-family: var(--font-heading);
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: var(--text-primary);
-}
-
-.kpi-sub {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-/* --------------------------------------------------------------------------
-   11. STATUS NOTIFICATION TOAST
+   10. STATUS NOTIFICATION TOAST
    Fixed, not static: as a static block it appended "Analysis complete" as
    plain text at the very bottom of a 5000px document.
    -------------------------------------------------------------------------- */
@@ -1116,7 +1239,7 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   12. RESULT RENDERING PRIMITIVES
+   11. RESULT RENDERING PRIMITIVES
    Emitted by displayResults() / displayBatchResults() in app.js.
    -------------------------------------------------------------------------- */
 .r-stack {
@@ -1247,7 +1370,7 @@ html, body {
 .verdict-banner.fail { background: var(--fail-bg); border-color: var(--fail-border); border-left-color: var(--fail-fg); color: var(--fail-fg); }
 
 /* --------------------------------------------------------------------------
-   12b. OVERVIEW HERO CARDS
+   11b. OVERVIEW HERO CARDS
    The request/response summary cards at the top of the Overview tab. These
    were ~90 lines of inline style in the pre-token purple/pink scheme, so
    they rendered identically in both themes and clashed with everything
@@ -1458,7 +1581,7 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   13. ICONS
+   12. ICONS
    Sprite symbols defined in index.html, referenced with <use>. Sized in em
    so they scale with their button's text, coloured with currentColor so
    they inherit hover/active states.
@@ -1484,7 +1607,7 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   14. MICRO-INTERACTIONS
+   13. MICRO-INTERACTIONS
    Subtle, and disabled entirely for users who ask for reduced motion.
    -------------------------------------------------------------------------- */
 .status-card,
@@ -1522,6 +1645,94 @@ html, body {
     .sample-pill:hover {
         transform: none;
     }
+}
+
+/* --------------------------------------------------------------------------
+   14. RESPONSIVE
+   The page had one breakpoint (1024px) and nothing below it, so on a phone
+   the 2rem gutters and 1.75rem card padding ate ~30% of the width and the
+   header, mode bar and editor toolbar all wrapped into tall stacks.
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+    /* The "OpenRTB Inspector" badge is the first thing to go — it restates
+       what the page already shows and is the only truly optional item in the
+       row. Dropping it keeps the header one line without shrinking targets. */
+    .header-subtitle { display: none; }
+
+    .mode-hint {
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 640px) {
+    :root {
+        --page-pad: 1rem;
+    }
+
+    .main { padding-top: 1.25rem; gap: 1.25rem; }
+
+    .section {
+        padding: 1.15rem;
+        border-radius: var(--radius-lg);
+    }
+
+    /* Kept in step with .section's padding — these are the pull-out rows. */
+    .results-tabs {
+        padding-left: 1.15rem;
+        padding-right: 1.15rem;
+        margin-left: -1.15rem;
+        margin-right: -1.15rem;
+    }
+
+    .button-group {
+        padding-left: 1.15rem;
+        padding-right: 1.15rem;
+        margin-left: -1.15rem;
+        margin-right: -1.15rem;
+        margin-bottom: -1.15rem;
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    .header-title { font-size: 1.25rem; }
+    .logo-icon { width: 36px; height: 36px; }
+
+    /* Frees ~70px for the title, which was otherwise ellipsised to
+       "Bid Analy…". The link keeps its icon, its title attribute and its
+       accessible name. */
+    .header-link-text { display: none; }
+    .header-link { padding: 0.55rem 0.7rem; }
+
+    .mode-selector {
+        padding: 0.6rem 0.75rem;
+        gap: 0.6rem;
+    }
+
+    /* Four equal targets rather than a ragged wrap of pill widths. */
+    .selector-options {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        width: 100%;
+    }
+
+    .mode-option {
+        justify-content: center;
+        padding: 0.55rem 0.5rem;
+    }
+
+    .source-strip,
+    .editor-toolbar { padding: 0.5rem 0.65rem; }
+
+    .editor-actions { gap: 0.3rem; }
+    .btn-small { padding: 0.35rem 0.55rem; }
+
+    .code-input { min-height: 220px; font-size: 0.8rem; }
+    .btn-large { width: 100%; padding: 0.85rem 1rem; }
+
+    .hero-card { padding: 1.25rem; }
+    .hero-head { flex-wrap: wrap; }
+    .r-grid-3 { grid-template-columns: 1fr; }
 }
 
 /* --------------------------------------------------------------------------

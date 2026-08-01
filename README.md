@@ -335,9 +335,13 @@ Translates raw spec integer codes into human labels:
 
 - **`static/app.js`**:
   Handles state management and interactive behavior:
-  - `switchMode()`: Handles mode tab switching without losing user text inputs.
+  - `switchMode()`: Handles mode tab switching without losing user text inputs, and updates the one-line mode hint in the selector bar.
   - `analyzeAll()`: Sends async POST requests to the FastAPI backend.
   - `displayResults()`: Dynamically builds KPI metric cards, tabs, warning counters, and raw JSON views using vanilla DOM manipulation.
+  - `setRelevantTabs()`: Hides result tabs the current run cannot fill (e.g. a request-only analysis shows 7 of the 10 tabs, batch shows 4), so the tab strip fits without horizontal scrolling.
+  - `setupDragDrop()`: Makes every editor (request, response, both compare panes, batch) a drop target with a "Drop file to load" overlay.
+  - `syncHeaderOffset()`: Measures the sticky header and publishes it as `--header-h`, which the sticky results tab strip offsets against.
+  - Each editor is a single stack: source strip (samples / URL / batch options) → toolbar → line-numbered code area → live JSON status bar showing validity, line count and payload size.
 
 ---
 

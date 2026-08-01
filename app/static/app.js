@@ -9,13 +9,56 @@ document.addEventListener("DOMContentLoaded", async () => {
     bindEvents();
     setupKeyboardShortcuts();
     setupDragDrop();
-    setupInputMethodTabs();
     setupResultTabs();
     setupJSONValidation();
     setupEditors();
     initializeTheme();
     setupExportMenu();
+    syncHeaderOffset();
 });
+
+/* The results tab strip sticks below the page header, so it needs the
+   header's real height. Hardcoding it per breakpoint was already 13px out
+   at 375px — the header wraps by content, not at the widths the media
+   queries guess — and it would drift again with any font or padding change.
+   Measure it instead and publish it as --header-h. */
+function syncHeaderOffset() {
+    const header = document.querySelector(".header");
+    if (!header) return;
+
+    let last = -1;
+    const apply = () => {
+        const h = Math.round(header.getBoundingClientRect().height);
+        if (h === last) return;              // cheap enough to call from scroll
+        last = h;
+        document.documentElement.style.setProperty("--header-h", `${h}px`);
+    };
+
+    /* Deliberately no requestAnimationFrame anywhere here. The header measures
+       150px at DOMContentLoaded and settles at 121px once the Google fonts
+       swap in, so a single measurement is 29px out and parks the tab strip in
+       mid-air. The obvious fix — re-measure on the next frame — silently never
+       runs in a background or hidden tab, where rAF is paused: the page then
+       stays wrong for as long as it is unattended. Timers and scroll events
+       keep firing there, so the correction rides on those instead.
+
+       scroll is the belt to load/fonts' braces: it is the only moment the
+       offset is observable, and apply() no-ops unless the height changed. */
+    apply();
+    setTimeout(apply, 0);
+    if (document.fonts?.ready) document.fonts.ready.then(() => setTimeout(apply, 0));
+    window.addEventListener("load", apply);
+    window.addEventListener("resize", apply);
+    window.addEventListener("scroll", apply, { passive: true });
+}
+
+/* One-line description per mode, shown beside the mode pills. */
+const MODE_HINTS = {
+    request: "Inspect a single OpenRTB bid request.",
+    response: "Inspect a single OpenRTB bid response.",
+    compare: "Check a response against the request that produced it.",
+    batch: "Run a log file of payloads and aggregate the results."
+};
 
 /* Icon reference for markup built in JS. Same sprite as the template, so
    generated results and static chrome share one icon set. */
@@ -128,11 +171,16 @@ function bindEvents() {
 function switchMode(mode) {
     state.currentMode = mode;
 
-    // Update button states
+    // Update button states. aria-pressed carries the same state to screen
+    // readers, which the .active class alone never did.
     document.querySelectorAll(".mode-option").forEach(btn => {
-        btn.classList.remove("active");
+        const on = btn.dataset.mode === mode;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", String(on));
     });
-    document.querySelector(`.mode-option[data-mode="${mode}"]`).classList.add("active");
+
+    const hint = document.getElementById("mode-hint-text");
+    if (hint) hint.textContent = MODE_HINTS[mode] || "";
 
     // Update content visibility
     document.querySelectorAll(".mode-content").forEach(el => el.style.display = "none");
@@ -173,113 +221,13 @@ async function loadSamples() {
         const res = await fetch("/samples");
         const data = await res.json();
         state.samples = data.samples || [];
-        populateSamples();
     } catch (err) {
         showStatus("Failed to load samples", "error");
     }
-}
-
-function populateSamples() {
-    ["request", "response"].forEach(kind => {
-        const grid = document.getElementById(`samples-${kind}-grid`);
-        if (!grid) return;
-
-        const samples = state.samples.filter(s => s.kind === kind);
-        if (!samples.length) {
-            grid.innerHTML = `<div style="color:var(--text-muted); padding:1rem;">No samples found.</div>`;
-            return;
-        }
-
-        grid.innerHTML = "";
-        samples.forEach(s => {
-            const card = document.createElement("button");
-            card.type = "button";
-            card.className = "sample-card btn btn-secondary";
-            card.style.display = "inline-flex";
-            card.style.alignItems = "center";
-            card.style.gap = "0.5rem";
-            card.style.padding = "0.75rem 1.25rem";
-            card.style.margin = "0.35rem";
-            card.innerHTML = `${icon("file")} <span>${s.name}</span>`;
-
-            card.addEventListener("click", () => {
-                const textareaId = `${kind}-raw`;
-                const ta = document.getElementById(textareaId);
-                if (ta) {
-                    ta.value = s.content;
-                    ta.dispatchEvent(new Event("input"));
-                }
-                // Switch back to editor tab
-                const editorTab = document.querySelector(`.input-method-tab[data-method="paste"][data-mode="${kind}"]`);
-                if (editorTab) editorTab.click();
-
-                showStatus(`Loaded ${s.name}`, "info");
-            });
-
-            grid.appendChild(card);
-        });
-    });
-}
-
-function setupInputMethodTabs() {
-    document.querySelectorAll(".input-method-tab").forEach(tab => {
-        tab.addEventListener("click", () => {
-            const method = tab.dataset.method;
-            const mode = tab.dataset.mode;
-            if (!method || !mode) return;
-
-            // Deactivate sibling tabs
-            const parent = tab.closest(".input-method-tabs");
-            if (parent) {
-                parent.querySelectorAll(".input-method-tab").forEach(t => t.classList.remove("active"));
-            }
-            tab.classList.add("active");
-
-            // Toggle method content views
-            const modeContent = document.getElementById(`input-${mode}`);
-            if (modeContent) {
-                modeContent.querySelectorAll(".input-method-content").forEach(c => c.style.display = "none");
-                const targetContent = document.getElementById(`method-${method}-${mode}`);
-                if (targetContent) {
-                    targetContent.style.display = "block";
-                    targetContent.classList.add("active");
-                }
-            }
-        });
-    });
-}
-
-async function fetchURL(mode) {
-    const urlInput = document.getElementById(`${mode}-url`);
-    if (!urlInput || !urlInput.value.trim()) {
-        showStatus("Please enter a valid HTTP/HTTPS URL", "error");
-        return;
-    }
-
-    const url = urlInput.value.trim();
-    showStatus(`Fetching content from URL...`, "info");
-
-    try {
-        const res = await postJson("/fetch/url", { url });
-        if (res.raw_text) {
-            const target = document.getElementById(`${mode}-raw`);
-            if (target) {
-                target.value = res.raw_text;
-                target.dispatchEvent(new Event("input"));
-            }
-            // Switch back to editor tab
-            const editorTab = document.querySelector(`.input-method-tab[data-method="paste"][data-mode="${mode}"]`);
-            if (editorTab) editorTab.click();
-
-            showStatus(`Fetched content from URL successfully`, "success");
-        } else if (res.error) {
-            showStatus(`Fetch error: ${res.error}`, "error");
-        } else {
-            showStatus("Failed to fetch content from URL", "error");
-        }
-    } catch (err) {
-        showStatus(`Fetch error: ${err.message}`, "error");
-    }
+    // Runs even on failure, so the strip shows "No samples found" rather
+    // than an empty gap with a stranded label beside it.
+    populateSamplePills("request");
+    populateSamplePills("response");
 }
 
 function handleFileUpload(e, mode) {
@@ -294,16 +242,6 @@ function handleFileUpload(e, mode) {
         showStatus(`Uploaded ${file.name}`, "info");
     };
     reader.readAsText(file);
-}
-
-function clearInputs() {
-    document.querySelectorAll("textarea").forEach(ta => ta.value = "");
-    document.querySelectorAll("select").forEach(sel => sel.value = "");
-    document.getElementById("results-placeholder").style.display = "block";
-    document.getElementById("results-content").style.display = "none";
-    document.getElementById("export-group").hidden = true;
-    clearBadges();
-    state.report = null;
 }
 
 async function analyzeAll() {
@@ -421,14 +359,32 @@ function resetResultPanels(note) {
     });
 }
 
+/* Show only the tabs this run can actually fill. Ten tabs needed 1261px of
+   strip in a column 529px wide — more of the bar was scrolled out of sight
+   than was visible — and most of what you found by scrolling was a panel
+   reading "Not applicable for this payload". A request-only run now shows
+   seven, a batch run four, and the strip fits. */
+function setRelevantTabs(panelIds) {
+    const keep = new Set(panelIds);
+    let activeWasHidden = false;
+
+    document.querySelectorAll(".tab-button").forEach(btn => {
+        const relevant = keep.has(btn.getAttribute("aria-controls"));
+        btn.hidden = !relevant;
+        if (!relevant && btn.classList.contains("active")) activeWasHidden = true;
+    });
+
+    // Only reposition when the tab in view has just gone away, so re-running
+    // a payload keeps you on the tab you were reading.
+    if (activeWasHidden) activateTab(document.getElementById("tabbtn-overview"));
+}
+
 function displayResults(report) {
     document.getElementById("results-placeholder").style.display = "none";
     document.getElementById("results-content").style.display = "block";
     document.getElementById("export-group").hidden = false;
 
     resetResultPanels("Not applicable for this payload.");
-    document.getElementById("tab-batch").innerHTML =
-        "<div class='r-empty'>Only used in Batch mode.</div>";
 
     // Phase 3: Enhanced Overview with KPI Metrics Dashboard
     let overviewHtml = "<div style='display: grid; gap: 2rem;'>";
@@ -726,6 +682,16 @@ function displayResults(report) {
     // Raw JSON
     document.getElementById("tab-raw").innerHTML =
         `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${esc(JSON.stringify(report, null, 2))}</pre>`;
+
+    // Overview, Warnings and Raw always carry something; the rest earn a tab.
+    const tabs = ["tab-overview", "tab-warnings", "tab-raw"];
+    if (explanations.length) tabs.push("tab-human");
+    if (report.request) tabs.push("tab-request");
+    if (report.response) tabs.push("tab-response");
+    if (report.comparison) tabs.push("tab-compare");
+    if (Object.keys(signals).length) tabs.push("tab-signals");
+    if (interviewPoints.length) tabs.push("tab-interview");
+    setRelevantTabs(tabs);
 }
 
 /* Batch payloads come from log files, so their ids and warning strings are
@@ -907,6 +873,7 @@ function displayBatchResults(report) {
     document.getElementById("tab-raw").innerHTML =
         `<pre style='font-size: 0.8rem; overflow-x: auto; max-height: 500px;'>${esc(JSON.stringify(report, null, 2))}</pre>`;
 
+    setRelevantTabs(["tab-overview", "tab-batch", "tab-warnings", "tab-raw"]);
     activateTab(document.getElementById("tabbtn-overview"));
 }
 
@@ -933,7 +900,11 @@ function setupResultTabs() {
         btn.addEventListener("click", () => activateTab(btn));
 
         btn.addEventListener("keydown", (e) => {
-            const group = Array.from(btn.closest("[role='tablist']").querySelectorAll(".tab-button"));
+            // :not([hidden]) — arrow keys must not land on a tab that this
+            // run removed, which would activate an invisible panel.
+            const group = Array.from(
+                btn.closest("[role='tablist']").querySelectorAll(".tab-button:not([hidden])")
+            );
             const i = group.indexOf(btn);
             let next = null;
 
@@ -1026,7 +997,18 @@ function setupJSONValidation() {
                 clearTimeout(timer);
                 timer = setTimeout(() => validateJSONField(ta, status), 350);
             });
+            // Paint the idle state now: the bar is a permanent row of the
+            // editor stack, so it must never render as an empty bordered slab.
+            validateJSONField(ta, status);
         });
+}
+
+/* Compact size read-out for the editor status bar. */
+function editorMetrics(text) {
+    const lines = text.split("\n").length;
+    const bytes = new Blob([text]).size;
+    const size = bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+    return `${lines} line${lines === 1 ? "" : "s"} · ${size}`;
 }
 
 function validateJSONField(textarea, status) {
@@ -1034,18 +1016,19 @@ function validateJSONField(textarea, status) {
     const shell = textarea.closest(".editor-shell");
 
     if (!text) {
-        status.textContent = "";
+        status.textContent = "Empty — load a sample, drop a file, or paste JSON";
         status.className = "json-status";
         textarea.classList.remove("has-error");
         textarea.removeAttribute("aria-invalid");
         delete textarea.dataset.errorLine;
+        if (shell) shell.classList.remove("has-error");
         renderGutter(textarea);
         return;
     }
 
     try {
         JSON.parse(text);
-        status.textContent = "✓ Valid JSON";
+        status.textContent = `✓ Valid JSON · ${editorMetrics(textarea.value)}`;
         status.className = "json-status valid";
         textarea.classList.remove("has-error");
         textarea.removeAttribute("aria-invalid");
@@ -1126,18 +1109,6 @@ function clearEditor(id) {
     showStatus("Editor cleared", "info");
 }
 
-function loadFirstSample(mode) {
-    const sample = state.samples.find(s => s.kind === mode);
-    if (!sample) {
-        showStatus("No sample available", "error");
-        return;
-    }
-    const ta = document.getElementById(`${mode}-raw`);
-    ta.value = sample.content;
-    ta.dispatchEvent(new Event("input"));
-    showStatus(`Loaded ${sample.name}`, "success");
-}
-
 /* Older engines report only "at position N"; derive line/column from it.
    Newer V8 already names the line, so don't repeat it. */
 function jsonErrorLocation(text, err) {
@@ -1171,78 +1142,89 @@ function setupKeyboardShortcuts() {
     });
 }
 
-/* Phase 2: Drag & Drop */
+/* Drag & drop onto the editor itself. The previous version bound to
+   #dropzone-request / #dropzone-response, which no longer exist in the
+   template, so dropping a file on the page did nothing — the browser just
+   navigated away to the file. Every editor is a drop target now, including
+   the two compare panes and batch, which were never covered. */
 function setupDragDrop() {
-    ["request", "response"].forEach(mode => {
-        const dropzone = document.getElementById(`dropzone-${mode}`);
-        if (!dropzone) return;
+    const targets = {
+        "request-raw": "request",
+        "response-raw": "response",
+        "compare-request-raw": "compare-request",
+        "compare-response-raw": "compare-response",
+        "batch-raw": "batch"
+    };
 
+    Object.entries(targets).forEach(([textareaId, mode]) => {
+        const shell = document.getElementById(textareaId)?.closest(".editor-shell");
         const fileInput = document.getElementById(`${mode}-file`);
+        if (!shell || !fileInput) return;
 
-        dropzone.addEventListener("click", () => fileInput.click());
+        // depth counts nested dragenter/dragleave pairs: the textarea and the
+        // gutter each fire their own, so a single flag flickers the highlight
+        // off as the pointer crosses between them.
+        let depth = 0;
 
-        ["dragenter", "dragover", "dragleave", "drop"].forEach(event => {
-            dropzone.addEventListener(event, (e) => {
+        ["dragenter", "dragover", "dragleave", "drop"].forEach(type => {
+            shell.addEventListener(type, (e) => {
                 e.preventDefault();
                 e.stopPropagation();
             });
         });
 
-        ["dragenter", "dragover"].forEach(event => {
-            dropzone.addEventListener(event, () => {
-                dropzone.classList.add("drag-over");
-            });
+        shell.addEventListener("dragenter", () => {
+            depth += 1;
+            shell.classList.add("drag-over");
         });
 
-        ["dragleave", "drop"].forEach(event => {
-            dropzone.addEventListener(event, () => {
-                dropzone.classList.remove("drag-over");
-            });
+        shell.addEventListener("dragleave", () => {
+            depth = Math.max(0, depth - 1);
+            if (!depth) shell.classList.remove("drag-over");
         });
 
-        dropzone.addEventListener("drop", (e) => {
-            const files = e.dataTransfer.files;
-            if (files.length) {
+        shell.addEventListener("drop", (e) => {
+            depth = 0;
+            shell.classList.remove("drag-over");
+            const files = e.dataTransfer?.files;
+            if (files && files.length) {
                 fileInput.files = files;
-                handleFileUpload({target: fileInput}, mode);
+                handleFileUpload({ target: fileInput }, mode);
             }
         });
     });
 }
 
-/* Phase 2: Input Method Tabs */
-function setupInputMethodTabs() {
-    document.querySelectorAll(".input-method-tab").forEach(tab => {
-        tab.addEventListener("click", () => {
-            const mode = tab.dataset.mode;
-            const method = tab.dataset.method;
-
-            document.querySelectorAll(`.input-method-tab[data-mode="${mode}"]`).forEach(t => {
-                t.classList.remove("active");
-            });
-            tab.classList.add("active");
-
-            document.querySelectorAll(".input-method-content").forEach(el => {
-                if (el.id.endsWith(`-${mode}`)) el.classList.remove("active");
-            });
-            document.getElementById(`method-${method}-${mode}`)?.classList.add("active");
-        });
-    });
-
-    populateSamplePills("request");
-    populateSamplePills("response");
-}
-
+/* Sample pills. Built with listeners rather than an interpolated onclick
+   attribute so a filename containing a quote can't break the markup. */
 function populateSamplePills(mode) {
     const grid = document.getElementById(`samples-${mode}-grid`);
     if (!grid) return;
 
     const samples = state.samples.filter(s => s.kind === mode);
-    grid.innerHTML = samples.map(s =>
-        `<button class="sample-pill" onclick="loadSampleByName('${s.name}', '${mode}')">
-            ${icon('file')} ${s.name.replace('sample_', '').replace(`.json`, '')}
-        </button>`
-    ).join("");
+    if (!samples.length) {
+        grid.innerHTML = `<span class="source-note">No samples found</span>`;
+        return;
+    }
+
+    grid.innerHTML = "";
+    samples.forEach(s => {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "sample-pill";
+        pill.title = s.name;
+        // sample_request_ctv.json → "ctv". The kind prefix is the same on
+        // every pill in a strip that already sits under a "Bid Request JSON"
+        // label, and stripping it takes the row from 513px to ~280px — the
+        // difference between one line of pills and two.
+        const label = s.name
+            .replace(/^sample_/, "")
+            .replace(/^(request|response)_/, "")
+            .replace(/\.json$/, "");
+        pill.innerHTML = `${icon("file")}<span>${esc(label)}</span>`;
+        pill.addEventListener("click", () => loadSampleByName(s.name, mode));
+        grid.appendChild(pill);
+    });
 }
 
 function loadSampleByName(sampleName, mode) {
@@ -1251,7 +1233,12 @@ function loadSampleByName(sampleName, mode) {
         showStatus("Sample not found", "error");
         return;
     }
-    document.getElementById(`${mode}-raw`).value = sample.content;
+    const ta = document.getElementById(`${mode}-raw`);
+    ta.value = sample.content;
+    // Without this the line-number gutter stayed at "1" and the status bar
+    // stayed empty for a sample that had just filled the editor — the two
+    // only ever updated on a real keystroke.
+    ta.dispatchEvent(new Event("input"));
     showStatus(`Loaded ${sampleName}`, "success");
 }
 
