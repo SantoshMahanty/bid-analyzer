@@ -1,6 +1,8 @@
 /* ==========================================================================
    BID ANALYZER — DESIGN SYSTEM
-   Left-aligned modes, side-by-side compare grid, full-width results.
+   Burnt-orange palette, mode switch in the header, and a fixed-height
+   two-panel workspace on desktop (§5b) where the editor and the results
+   scroll inside their own equal-sized boxes rather than growing the page.
    Google Fonts (Outfit, Plus Jakarta Sans, JetBrains Mono).
 
    Section 11 onward holds the result-rendering primitives that app.js
@@ -18,50 +20,57 @@
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
 
-    /* Primary Brand Accents */
-    --primary: #6366f1;
-    --primary-light: #a5b4fc;
-    --primary-dark: #4f46e5;
-    /* Solid fills that carry white label text. #6366f1 only reaches 4.47:1
-       against white, which fails AA for the 14–16px bold labels on the mode
-       pills, so those use --primary-solid instead. */
-    --primary-solid: #5b5bd6;
-    --primary-glow: rgba(99, 102, 241, 0.35);
+    /* Primary Brand Accents — burnt orange.
+       Orange is a light hue, so the shade that reads as "orange" on a dark
+       panel (#f97316) only manages 3.0:1 under white text and cannot carry a
+       label. Accent duty and fill duty are therefore split: --primary tints
+       borders and icons, --primary-solid is the darker shade used wherever
+       white text sits on top. */
+    --primary: #f97316;
+    --primary-light: #fdba74;
+    --primary-dark: #9a3412;
+    --primary-solid: #c2410c;
+    --primary-glow: rgba(249, 115, 22, 0.35);
 
-    --accent-cyan: #22d3ee;
-    --accent-pink: #ec4899;
-    --accent-purple: #a855f7;
+    /* Translucent brand washes. Previously hardcoded as rgba(99, 102, 241, …)
+       at five call sites, which is why the old indigo survived every earlier
+       recolour attempt. */
+    --primary-tint: rgba(249, 115, 22, 0.15);
+    --primary-tint-soft: rgba(249, 115, 22, 0.1);
 
-    /* Gradient stops are darkened from the original indigo/violet/fuchsia
-       so white text clears 4.5:1 across the whole sweep (5.37 / 5.70 / 6.32
-       rather than 4.47 / 4.23 / 3.46). */
-    --gradient-brand: linear-gradient(135deg, #5b5bd6 0%, #7c3aed 50%, #a21caf 100%);
-    --gradient-glow: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(217, 70, 239, 0.3) 100%);
+    --accent-amber: #fbbf24;
+    --accent-rose: #fb7185;
+
+    /* Every stop clears 4.5:1 under white: the Analyze label is 16.8px bold,
+       which is below the large-text threshold and needs the full ratio. */
+    --gradient-brand: linear-gradient(135deg, #c2410c 0%, #9a3412 55%, #7c2d12 100%);
+    --gradient-glow: linear-gradient(135deg, rgba(249, 115, 22, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%);
     --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%);
 
-    /* Dark Theme Surface Colors (Default SaaS Dark)
-       Steps are spaced ~9 CIE L* apart. The previous ramp sat ~5 L* apart,
-       which read as one flat wash: cards never lifted off the page. */
-    --bg-app: #05070e;
-    --bg-mesh-1: rgba(99, 102, 241, 0.12);
-    --bg-mesh-2: rgba(217, 70, 239, 0.1);
+    /* Dark Theme Surfaces — warm, orange-cast browns rather than navy.
+       Steps stay ~9 CIE L* apart so cards keep lifting off the page; only the
+       hue has moved. */
+    --bg-app: #0d0704;
+    --bg-mesh-1: rgba(249, 115, 22, 0.14);
+    --bg-mesh-2: rgba(217, 119, 6, 0.1);
 
-    --surface: #131c33;
-    --surface-alt: #22304f;
-    --surface-border: #3a4b75;
-    --surface-border-hover: #55689a;
+    --surface: #23150e;
+    --surface-alt: #3a251a;
+    --surface-border: #5c3d2c;
+    --surface-border-hover: #8a5f45;
 
-    --text-primary: #f6f8fc;
-    --text-secondary: #c6d2e4;
-    --text-muted: #94a3bd;
-    --kv-key: #a9b7ff;
+    /* Warm-tinted neutrals: pure grey text on a brown panel reads as dirty. */
+    --text-primary: #fdf6f1;
+    --text-secondary: #e3d0c3;
+    --text-muted: #bfa392;
+    --kv-key: #ffb787;
 
     /* Translucent panels. Tokenised so light mode can override them —
-       hardcoding the dark navy left a grey smudge across the light theme. */
-    --header-bg: rgba(19, 28, 51, 0.85);
+       hardcoding the dark shell left a smudge across the light theme. */
+    --header-bg: rgba(35, 21, 14, 0.85);
     --header-border: rgba(255, 255, 255, 0.08);
-    --toolbar-bg: rgba(5, 7, 14, 0.5);
-    --title-gradient: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+    --toolbar-bg: rgba(13, 7, 4, 0.5);
+    --title-gradient: linear-gradient(135deg, #ffffff 0%, #ffd9bf 100%);
 
     /* Status Badges */
     --pass-bg: rgba(16, 185, 129, 0.12);
@@ -84,7 +93,7 @@
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 8px 20px -2px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 20px 35px -4px rgba(0, 0, 0, 0.6);
-    --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.35);
+    --shadow-glow: 0 0 25px rgba(249, 115, 22, 0.3);
 
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -104,34 +113,37 @@
     --editor-max: 500px;
 }
 
-/* Light Mode Overrides
-   --primary-light and --accent-cyan are overridden rather than duplicating
-   the rules that consume them: at #818cf8 / #06b6d4 the active tab label
-   and the header badge sat at 2.98:1 and 2.43:1 on white. Redefining the
-   token fixes every consumer at once. */
+/* Light Mode Overrides — warm cream, not cold white.
+   --primary-light is redefined rather than duplicating the rules that consume
+   it: the shade that reads as orange on a dark panel (#fdba74) collapses to
+   1.5:1 on cream, so on light it becomes the darkest brand shade instead.
+   Redefining the token fixes every consumer at once. */
 html[data-theme="light"] {
-    --primary-light: #4f46e5;
-    --primary-solid: #4f46e5;
-    --accent-cyan: #0e7490;
+    --primary: #ea580c;
+    --primary-light: #9a3412;
+    --primary-solid: #b45309;
+    --primary-glow: rgba(234, 88, 12, 0.3);
+    --primary-tint: rgba(234, 88, 12, 0.14);
+    --primary-tint-soft: rgba(234, 88, 12, 0.1);
 
-    --bg-app: #f4f7fb;
-    --bg-mesh-1: rgba(99, 102, 241, 0.06);
-    --bg-mesh-2: rgba(6, 182, 212, 0.06);
+    --bg-app: #fdf6ef;
+    --bg-mesh-1: rgba(249, 115, 22, 0.08);
+    --bg-mesh-2: rgba(217, 119, 6, 0.07);
 
     --surface: #ffffff;
-    --surface-alt: #eef2f8;
-    --surface-border: #d5dfec;
-    --surface-border-hover: #b3c2d8;
+    --surface-alt: #fbeee3;
+    --surface-border: #eed9c6;
+    --surface-border-hover: #d9b394;
 
-    --text-primary: #0f172a;
-    --text-secondary: #414f65;
-    --text-muted: #5a6879;
-    --kv-key: #3730a3;
+    --text-primary: #2a1710;
+    --text-secondary: #5c4438;
+    --text-muted: #7a5b49;
+    --kv-key: #9a3412;
 
-    --header-bg: rgba(255, 255, 255, 0.85);
+    --header-bg: rgba(255, 255, 255, 0.88);
     --header-border: var(--surface-border);
-    --toolbar-bg: #f8fafc;
-    --title-gradient: linear-gradient(135deg, #0f172a 0%, #475569 100%);
+    --toolbar-bg: #fdf4ec;
+    --title-gradient: linear-gradient(135deg, #2a1710 0%, #7c2d12 100%);
 
     /* Status foregrounds all sat below 4.5:1 on white (3.19 – 4.10).
        These clear AA on both --surface and --surface-alt. */
@@ -151,10 +163,10 @@ html[data-theme="light"] {
     --info-border: rgba(3, 105, 161, 0.3);
     --info-fg: #0369a1;
 
-    --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 8px 16px -2px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 20px 30px -4px rgba(15, 23, 42, 0.1);
-    --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
+    --shadow-sm: 0 2px 4px rgba(69, 26, 3, 0.05);
+    --shadow-md: 0 8px 16px -2px rgba(69, 26, 3, 0.09);
+    --shadow-lg: 0 20px 30px -4px rgba(69, 26, 3, 0.11);
+    --shadow-glow: 0 0 20px rgba(234, 88, 12, 0.22);
 }
 
 /* --------------------------------------------------------------------------
@@ -268,18 +280,6 @@ html, body {
     -webkit-text-fill-color: transparent;
 }
 
-.header-subtitle {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--accent-cyan);
-    padding: 0.25rem 0.65rem;
-    border-radius: var(--radius-full);
-    background: var(--info-bg);
-    border: 1px solid var(--info-border);
-}
-
 .header-right {
     display: flex;
     align-items: center;
@@ -323,28 +323,32 @@ html, body {
     flex: 1;
 }
 
+/* Header-resident mode switch. No card chrome here — inside the header it is
+   part of the app bar, and the surface/border/shadow it carried as a standalone
+   row would read as a panel floating in another panel. */
 .mode-selector {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 1rem;
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-lg);
-    padding: 0.65rem 1.25rem;
-    box-shadow: var(--shadow-md);
-    flex-wrap: wrap;
+    gap: 0.65rem;
+    min-width: 0;
+    flex: 0 1 auto;
 }
 
-/* Fills the right half of the mode bar, which was empty. Pushed to the far
-   edge so it reads as commentary on the selection, not another control. */
+/* Commentary on the current mode, not a control — muted and set apart from
+   the "Input Data" heading it shares a row with. */
 .mode-hint {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-left: auto;
-    font-size: 0.85rem;
+    gap: 0.65rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
+    min-width: 0;
+}
+
+.mode-hint #mode-hint-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .kbd-group {
@@ -369,37 +373,44 @@ kbd {
 
 .selector-label {
     font-family: var(--font-heading);
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text-muted);
-    margin-right: 0.75rem;
-    padding-left: 0.25rem;
+    flex: 0 0 auto;
 }
 
+/* Segmented control: one inset track, four segments, nowrap so it never
+   becomes a second header row. */
 .selector-options {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.25rem;
     background: var(--surface-alt);
-    padding: 0.3rem;
+    padding: 0.25rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--surface-border);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-width: 0;
 }
+
+.selector-options::-webkit-scrollbar { display: none; }
 
 .mode-option {
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
-    padding: 0.55rem 1.35rem;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
     border-radius: var(--radius-sm);
     border: none;
     background: transparent;
     color: var(--text-secondary);
     font-family: var(--font-heading);
-    font-size: 0.92rem;
+    font-size: 0.85rem;
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
     transition: var(--transition);
 }
@@ -426,8 +437,82 @@ kbd {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     gap: 1.75rem;
-    align-items: start;
+    align-items: stretch;
     width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   5b. FIXED WORKSPACE (desktop)
+   The two panels are one workspace sized to the viewport, not two documents
+   that grow with their content. Before this, pasting a large payload pushed
+   the editor down the page and the results panel ended up a different height
+   from the input panel beside it.
+
+   No magic offset anywhere: .app is exactly the viewport, .main flexes into
+   what the header leaves, and .content takes what the mode bar leaves. Every
+   level sets `min-height: 0` because a flex item's default `min-height:auto`
+   refuses to shrink below its content — which is precisely how an inner
+   scroll region silently becomes an outer one.
+   -------------------------------------------------------------------------- */
+@media (min-width: 1181px) {
+    .app { height: 100vh; }
+
+    .main { min-height: 0; }
+
+    .content.split-layout {
+        flex: 1;
+        min-height: 0;
+        /* Floor for short windows: below this the panels stop shrinking and
+           the page scrolls normally rather than crushing the editor. */
+        min-height: 540px;
+    }
+
+    /* Equal by construction — both stretch to the same grid row. */
+    .content.split-layout > .section { min-height: 0; }
+
+    /* The one row in each panel that absorbs the slack. */
+    .split-layout .mode-content.active,
+    .split-layout .input-container,
+    .split-layout .editor-stack,
+    .split-layout .results-content {
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Editor fills the stack and scrolls inside itself. max-height is
+       explicitly dropped: the 500px cap that keeps the editor honest in the
+       document-flow layouts would here leave a gap under a tall panel. */
+    .split-layout .editor-shell {
+        flex: 1;
+        min-height: 0;
+        max-height: none;
+    }
+
+    .split-layout .code-input {
+        min-height: 0;
+        max-height: none;
+        /* The drag handle fights a panel whose height is set by the layout. */
+        resize: none;
+    }
+
+    .split-layout .results-placeholder {
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Results scroll under a tab strip that stays put, so the tabs are
+       reachable at any scroll depth without needing position: sticky. */
+    .split-layout .tab-panels {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        margin-bottom: 0;
+    }
+
+    .split-layout .results-tabs {
+        position: static;
+        flex: 0 0 auto;
+    }
 }
 
 /* Between 1180 and 1400 the 5:7 split squeezes the editor toolbar into two
@@ -463,6 +548,23 @@ kbd {
     width: 100%;
     min-width: 0;
 }
+
+/* Mode panels. Visibility lives here rather than in inline styles set by
+   switchMode(), because an inline `display: block` outranks the flex layout
+   the fixed workspace needs the active panel to use. */
+.mode-content { display: none; }
+.mode-content.active { display: block; }
+
+.split-layout .mode-content.active,
+.split-layout .input-container,
+.split-layout .editor-stack,
+.split-layout .results-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.results-content[hidden],
+.results-placeholder[hidden] { display: none; }
 
 .section-header {
     display: flex;
@@ -624,7 +726,7 @@ kbd {
 .sample-pill:hover {
     color: var(--text-primary);
     border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.12);
+    background: var(--primary-tint-soft);
     transform: translateY(-1px);
 }
 
@@ -878,7 +980,7 @@ kbd {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 10px 26px var(--primary-glow);
 }
 
 .btn-primary:active {
@@ -1050,8 +1152,8 @@ kbd {
 
 .tab-button.active {
     color: var(--primary-light);
-    background: rgba(99, 102, 241, 0.15);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    background: var(--primary-tint);
+    box-shadow: 0 2px 8px var(--primary-tint);
 }
 
 /* Tab count badges. app.js sets the tone via .fail / .neutral, with the
@@ -1385,7 +1487,7 @@ kbd {
 }
 
 .hero-card.request {
-    background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
+    background: linear-gradient(135deg, #c2410c 0%, #7c2d12 100%);
 }
 
 .hero-card.response {
@@ -1531,7 +1633,7 @@ kbd {
 }
 
 .dist-fill {
-    background: linear-gradient(90deg, var(--primary), var(--accent-purple));
+    background: linear-gradient(90deg, var(--primary), var(--accent-amber));
     height: 100%;
 }
 
@@ -1654,16 +1756,25 @@ kbd {
    header, mode bar and editor toolbar all wrapped into tall stacks.
    -------------------------------------------------------------------------- */
 @media (max-width: 900px) {
-    /* The "OpenRTB Inspector" badge is the first thing to go — it restates
-       what the page already shows and is the only truly optional item in the
-       row. Dropping it keeps the header one line without shrinking targets. */
-    .header-subtitle { display: none; }
-
-    .mode-hint {
-        margin-left: 0;
-        width: 100%;
-        justify-content: space-between;
+    /* Two deliberate header rows: identity and actions on top, the full-width
+       mode control beneath. Cramming all three groups onto one line here left
+       the segmented control a ~90px scrolling sliver. syncHeaderOffset()
+       measures whatever this comes to, so the sticky tab strip follows. */
+    .header-main {
+        flex-wrap: wrap;
+        row-gap: 0.65rem;
     }
+
+    .mode-selector {
+        order: 3;
+        width: 100%;
+        flex: 1 0 100%;
+    }
+
+    .selector-options { flex: 1; }
+    .mode-option { flex: 1; justify-content: center; }
+
+    .section-header { flex-wrap: wrap; }
 }
 
 @media (max-width: 640px) {
@@ -1704,22 +1815,17 @@ kbd {
     .header-link-text { display: none; }
     .header-link { padding: 0.55rem 0.7rem; }
 
-    .mode-selector {
-        padding: 0.6rem 0.75rem;
-        gap: 0.6rem;
-    }
+    /* The label is redundant once the pills own their own row. */
+    .selector-label { display: none; }
 
-    /* Four equal targets rather than a ragged wrap of pill widths. */
-    .selector-options {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        width: 100%;
-    }
+    /* Text over icons: four icon+label pills need ~96px each and only ~80px
+       is available, so the row scrolled and Batch sat off-screen. The words
+       are the part that identifies the mode, so the glyphs go. */
+    .mode-option { padding: 0.5rem 0.35rem; font-size: 0.8rem; }
+    .mode-option .icon { display: none; }
 
-    .mode-option {
-        justify-content: center;
-        padding: 0.55rem 0.5rem;
-    }
+    /* Icons alone would be ambiguous, so the labels stay and the hint goes. */
+    .mode-hint { display: none; }
 
     .source-strip,
     .editor-toolbar { padding: 0.5rem 0.65rem; }

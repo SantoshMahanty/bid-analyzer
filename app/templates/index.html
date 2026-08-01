@@ -152,8 +152,34 @@
                 <div class="header-left">
                     <span class="logo-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-logo"/></svg></span>
                     <h1 class="header-title">Bid Analyzer</h1>
-                    <p class="header-subtitle">OpenRTB Inspector</p>
                 </div>
+
+                <!-- Mode lives in the header: it governs the whole workspace,
+                     so it belongs with the app chrome rather than as a card
+                     inside the content it controls. Moving it up also returns
+                     ~100px of vertical space to the panels below. -->
+                <div class="mode-selector" role="group" aria-label="Analysis mode">
+                    <span class="selector-label">Mode</span>
+                    <div class="selector-options">
+                        <button class="mode-option active" data-mode="request" aria-pressed="true">
+                            <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+                            <span class="mode-name">Request</span>
+                        </button>
+                        <button class="mode-option" data-mode="response" aria-pressed="false">
+                            <svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg>
+                            <span class="mode-name">Response</span>
+                        </button>
+                        <button class="mode-option" data-mode="compare" aria-pressed="false">
+                            <svg class="icon" aria-hidden="true"><use href="#i-scale"/></svg>
+                            <span class="mode-name">Compare</span>
+                        </button>
+                        <button class="mode-option" data-mode="batch" aria-pressed="false">
+                            <svg class="icon" aria-hidden="true"><use href="#i-package"/></svg>
+                            <span class="mode-name">Batch</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="header-right">
                     <button class="header-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Toggle dark mode">
                         <svg class="icon" aria-hidden="true"><use href="#i-moon" id="theme-icon"/></svg>
@@ -168,45 +194,20 @@
 
         <!-- Main Content -->
         <main class="main">
-            <!-- Mode Selector -->
-            <div class="mode-selector">
-                <span class="selector-label">Mode</span>
-                <div class="selector-options">
-                    <button class="mode-option active" data-mode="request" aria-pressed="true">
-                        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
-                        <span class="mode-name">Request</span>
-                    </button>
-                    <button class="mode-option" data-mode="response" aria-pressed="false">
-                        <svg class="icon" aria-hidden="true"><use href="#i-inbox"/></svg>
-                        <span class="mode-name">Response</span>
-                    </button>
-                    <button class="mode-option" data-mode="compare" aria-pressed="false">
-                        <svg class="icon" aria-hidden="true"><use href="#i-scale"/></svg>
-                        <span class="mode-name">Compare</span>
-                    </button>
-                    <button class="mode-option" data-mode="batch" aria-pressed="false">
-                        <svg class="icon" aria-hidden="true"><use href="#i-package"/></svg>
-                        <span class="mode-name">Batch</span>
-                    </button>
-                </div>
-                <!--
-                  The right half of this bar used to be dead space. It now carries
-                  the one-line description of the selected mode (updated by
-                  switchMode) and the shortcut that runs it, so the explanation
-                  sits next to the control it explains rather than in a tooltip.
-                -->
-                <p class="mode-hint" id="mode-hint">
-                    <span id="mode-hint-text">Inspect a single OpenRTB bid request.</span>
-                    <span class="kbd-group"><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
-                </p>
-            </div>
-
             <!-- Content Area -->
             <div class="content split-layout">
                 <!-- Input Section -->
                 <div class="section input-section">
                     <div class="section-header">
                         <h2><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg> Input Data</h2>
+                        <!-- The mode's one-line description follows the mode
+                             selector out of the content area, but lands here
+                             rather than in the header: it explains what this
+                             panel is currently for, and switchMode updates it. -->
+                        <p class="mode-hint" id="mode-hint">
+                            <span id="mode-hint-text">Inspect a single OpenRTB bid request.</span>
+                            <span class="kbd-group"><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
+                        </p>
                     </div>
 
                     <!--
@@ -257,7 +258,7 @@
                     </div>
 
                     <!-- Response Mode -->
-                    <div class="mode-content" id="input-response" style="display:none;">
+                    <div class="mode-content" id="input-response">
                         <div class="input-container">
                             <div class="editor-stack">
                                 <div class="source-strip">
@@ -294,7 +295,7 @@
                     </div>
 
                     <!-- Compare Mode -->
-                    <div class="mode-content" id="input-compare" style="display:none;">
+                    <div class="mode-content" id="input-compare">
                         <div class="compare-grid">
                             <!-- Left: Request JSON -->
                             <div class="compare-card">
@@ -339,7 +340,7 @@
                     </div>
 
                     <!-- Batch Mode -->
-                    <div class="mode-content" id="input-batch" style="display:none;">
+                    <div class="mode-content" id="input-batch">
                         <div class="input-container">
                             <div class="editor-stack">
                                 <!-- The per-entry type select is a setting for this
@@ -421,7 +422,7 @@
                     </div>
 
                     <!-- Results Content -->
-                    <div id="results-content" class="results-content" style="display:none;">
+                    <div id="results-content" class="results-content" hidden>
                         <!-- Single scrollable tab row. Two stacked rows split one
                              mental model in half and still overflowed once Batch
                              was added; one row with horizontal scroll keeps a

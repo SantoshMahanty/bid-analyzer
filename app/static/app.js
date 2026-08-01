@@ -182,9 +182,12 @@ function switchMode(mode) {
     const hint = document.getElementById("mode-hint-text");
     if (hint) hint.textContent = MODE_HINTS[mode] || "";
 
-    // Update content visibility
-    document.querySelectorAll(".mode-content").forEach(el => el.style.display = "none");
-    document.getElementById(`input-${mode}`).style.display = "block";
+    // Update content visibility. Class, not inline display: the fixed
+    // workspace needs the active panel to be a flex column, and an inline
+    // `display: block` here would outrank that rule.
+    document.querySelectorAll(".mode-content").forEach(el => {
+        el.classList.toggle("active", el.id === `input-${mode}`);
+    });
 
     // Dynamic layout switching per mode
     const contentEl = document.querySelector(".content");
@@ -380,8 +383,8 @@ function setRelevantTabs(panelIds) {
 }
 
 function displayResults(report) {
-    document.getElementById("results-placeholder").style.display = "none";
-    document.getElementById("results-content").style.display = "block";
+    document.getElementById("results-placeholder").hidden = true;
+    document.getElementById("results-content").hidden = false;
     document.getElementById("export-group").hidden = false;
 
     resetResultPanels("Not applicable for this payload.");
@@ -729,8 +732,8 @@ function distributionBlock(title, distribution) {
 
 
 function displayBatchResults(report) {
-    document.getElementById("results-placeholder").style.display = "none";
-    document.getElementById("results-content").style.display = "block";
+    document.getElementById("results-placeholder").hidden = true;
+    document.getElementById("results-content").hidden = false;
     document.getElementById("export-group").hidden = false;
 
     /* Same reason as displayResults(): without this, switching from a

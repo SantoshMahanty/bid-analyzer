@@ -322,9 +322,21 @@ Translates raw spec integer codes into human labels:
     consumer at once, instead of duplicating each selector.
   - Dark surface steps (`--bg-app` → `--surface` → `--surface-alt`) are
     spaced ~9 CIE L\* apart so cards visibly lift off the page.
+  - Burnt-orange brand palette over warm brown surfaces (dark) and warm cream
+    (light). Orange is a light hue, so accent duty and fill duty are split:
+    `--primary` tints borders and icons, while `--primary-solid` is the darker
+    shade used wherever white text sits on top. Translucent brand washes go
+    through `--primary-tint` / `--primary-tint-soft` rather than hardcoded
+    `rgba(...)` call sites.
   - Every text/background pair in both themes meets WCAG AA (4.5:1 for body
     text, 3:1 for large text), including the tinted status surfaces and the
     two Overview hero gradients.
+  - **Fixed workspace (§5b, ≥1181px)**: the input and results panels are one
+    viewport-sized workspace of two equal-height boxes. Each scrolls
+    internally, so pasting a large payload never grows the page or makes one
+    panel taller than the other. Sized purely by nested flex (`.app` → `.main`
+    → `.content`), so there is no magic offset to keep in sync; below 1181px
+    the panels stack and return to normal document flow.
   - Translucent status badges (`rgba(...)`) for clean visual feedback.
   - Responsive flexbox and grid layouts, plus a `prefers-reduced-motion`
     block that disables transitions and the animated background mesh.
