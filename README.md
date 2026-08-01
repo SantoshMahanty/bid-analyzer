@@ -4,6 +4,44 @@
 
 Welcome! Whether you are a computer science student, a junior developer, or an ad tech professional, this documentation is written so you can easily understand **what this project does**, **why it exists**, **how the advertising auction system works**, and **every detail of the underlying Python & JavaScript code**.
 
+**New here? Start with [Section 5](#5-get-the-code--run-it-step-by-step) — it walks you from a blank machine to a running app.** No prior ad tech knowledge needed.
+
+---
+
+## 📋 Project at a Glance
+
+| | |
+|---|---|
+| **What it is** | A local web app that reads OpenRTB bid request / bid response JSON and explains it in plain English |
+| **Who it's for** | Students learning ad tech, junior developers, ad ops and solution engineers |
+| **Repository** | https://github.com/SantoshMahanty/bid-analyzer |
+| **Language** | Python 3.10+ (backend) · Vanilla JavaScript (frontend) |
+| **Main libraries** | FastAPI, Uvicorn, Pydantic v2, Jinja2 |
+| **Runs on** | Windows, macOS, Linux |
+| **Setup time** | ~5 minutes |
+| **Internet needed?** | Only to install it. After that it runs fully offline |
+| **Accounts / API keys** | None. Nothing to sign up for |
+| **Database** | None. Nothing is stored; each analysis is in-memory |
+| **Cost** | Free — no paid services involved |
+
+**Project size**
+
+| Part | Size |
+|---|---|
+| Backend services | 13 Python modules (`app/services/`) |
+| API endpoints | 9 routes (`app/routes/`) |
+| Frontend | `app.js` (~1,580 lines) + `styles.css` (~1,870 lines), no build step |
+| Automated tests | 5 test files — **53 tests, all passing** |
+| Bundled sample payloads | 6 ready-to-use JSON files |
+
+**What you can do with it**
+
+- Paste a bid request and see the device, ad format, and environment decoded from numeric codes.
+- Get a **CTV confidence score** telling you how likely the traffic is really a Smart TV.
+- Validate a payload against 40+ OpenRTB spec rules and see every warning and error.
+- **Compare** a bid response against its request to find out why a bid would be discarded.
+- Run a whole **log file** of payloads in batch and see aggregate statistics.
+
 ---
 
 ## 📚 Table of Contents
@@ -12,7 +50,15 @@ Welcome! Whether you are a computer science student, a junior developer, or an a
 2. [Background: How Online Ad Auctions Work](#2-background-how-online-ad-auctions-work)
 3. [The Problem & The Solution](#3-the-problem--the-solution)
 4. [Tech Stack & Architecture Overview](#4-tech-stack--architecture-overview)
-5. [Step-by-Step Installation & Quick Start](#5-step-by-step-installation--quick-start)
+5. [Get the Code & Run It (Step by Step)](#5-get-the-code--run-it-step-by-step) ← **start here**
+   - [Step 1 — Install the two tools you need](#step-1--install-the-two-tools-you-need)
+   - [Step 2 — Download the project from GitHub](#step-2--download-the-project-from-github)
+   - [Step 3 — Create a virtual environment](#step-3--create-a-virtual-environment)
+   - [Step 4 — Install the dependencies](#step-4--install-the-dependencies)
+   - [Step 5 — Start the server](#step-5--start-the-server)
+   - [Step 6 — Open it and run your first analysis](#step-6--open-it-and-run-your-first-analysis)
+   - [Step 7 — Getting updates later](#step-7--getting-updates-later)
+   - [Troubleshooting](#troubleshooting)
 6. [Project Folder & File Structure](#6-project-folder--file-structure)
 7. [Deep-Dive into the Code (Module by Module)](#7-deep-dive-into-the-code-module-by-module)
    - [7.1 HTTP Layer (`app/routes/`)](#71-http-layer-approutes)
@@ -131,45 +177,226 @@ The app was designed with **zero unnecessary complexity**: no external database,
 
 ---
 
-## 5. Step-by-Step Installation & Quick Start
+## 5. Get the Code & Run It (Step by Step)
 
-### 1. Prerequisite
-Ensure you have **Python 3.10 or newer** installed:
+This section assumes **no prior experience**. Follow it top to bottom and you
+will have the app running in about five minutes. Every command is shown for
+both Windows and macOS/Linux.
+
+> **A note on the code blocks below:** lines starting with `#` are comments
+> explaining the command — you do not type those. Type the command itself and
+> press Enter.
+
+### Step 1 — Install the two tools you need
+
+You need **Python** (runs the app) and **Git** (downloads the code from
+GitHub). Check whether you already have them:
+
 ```bash
 python --version
 ```
 
-### 2. Navigate to Project Directory
 ```bash
-cd "path/to/bid analyzer"
+git --version
 ```
 
-### 3. Create & Activate a Virtual Environment
-A virtual environment keeps project dependencies isolated.
+If a command prints a version number, you already have it. If it says
+*"command not found"* or *"is not recognized"*, install the missing one:
+
+| Tool | Minimum version | Where to get it |
+|---|---|---|
+| **Python** | 3.10 | https://www.python.org/downloads/ |
+| **Git** | any recent | https://git-scm.com/downloads |
+
+> **Windows tip:** on the Python installer's first screen, tick
+> **"Add python.exe to PATH"** before clicking Install. If you miss it, the
+> `python` command will not be found afterwards and you will have to
+> re-run the installer.
+>
+> **macOS tip:** macOS may ship an old Python 2. If `python --version` shows
+> `2.x`, use `python3` instead of `python` in every command below.
+
+### Step 2 — Download the project from GitHub
+
+"Cloning" means downloading your own copy of the repository, along with its
+full history, so you can update it later with a single command.
+
+Open a terminal (**PowerShell** on Windows, **Terminal** on macOS/Linux),
+move to wherever you keep your projects, then clone:
+
+```bash
+cd Desktop
+```
+
+```bash
+git clone https://github.com/SantoshMahanty/bid-analyzer.git
+```
+
+This creates a new folder called `bid-analyzer`. Move into it — **every
+remaining command in this guide runs from inside this folder**:
+
+```bash
+cd bid-analyzer
+```
+
+<details>
+<summary><b>No Git installed? Download a ZIP instead (click to expand)</b></summary>
+
+1. Open https://github.com/SantoshMahanty/bid-analyzer in your browser.
+2. Click the green **Code** button → **Download ZIP**.
+3. Extract the ZIP, then `cd` into the extracted folder.
+
+This works fine, but you will not be able to use `git pull` to get updates
+later (see [Step 7](#step-7--getting-updates-later)) — you would have to
+download a fresh ZIP each time. Installing Git is worth it.
+
+</details>
+
+### Step 3 — Create a virtual environment
+
+A **virtual environment** ("venv") is a private folder holding this
+project's libraries. Without one, `pip install` puts libraries into your
+system-wide Python, where different projects can demand conflicting versions
+of the same library and break each other. The venv keeps this project's
+dependencies sealed off from everything else on your machine.
 
 * **Windows (PowerShell)**:
   ```powershell
   python -m venv venv
+  ```
+  ```powershell
   .\venv\Scripts\Activate.ps1
   ```
 * **macOS / Linux**:
   ```bash
   python3 -m venv venv
+  ```
+  ```bash
   source venv/bin/activate
   ```
 
-### 4. Install Dependencies
+Your prompt should now start with `(venv)`. That is how you know it worked —
+it means the next commands will use the project's private Python.
+
+> **Windows: "running scripts is disabled on this system"?** PowerShell blocks
+> scripts by default. Allow them for your own account, then activate again:
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
+
+### Step 4 — Install the dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Run the Server
+This reads `requirements.txt` and installs the exact library versions the
+project was built and tested against. It takes a minute or two and prints a
+lot of text — that is normal. You are looking for `Successfully installed`
+near the end.
+
+### Step 5 — Start the server
+
 ```bash
 python -m uvicorn app.main:app --reload
 ```
 
-### 6. Open in Browser
-Visit **`http://127.0.0.1:8000`** in your browser!
+You should see something like:
+
+```text
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Application startup complete.
+```
+
+**Leave this terminal window open.** It *is* the running server — closing it
+stops the app. `--reload` means the server restarts automatically whenever you
+edit a file, which is handy while you are exploring the code.
+
+### Step 6 — Open it and run your first analysis
+
+Visit **http://127.0.0.1:8000** in your browser, then:
+
+1. In the **Samples** row above the editor, click **`ctv`**. A real bid
+   request payload loads into the editor and the status bar underneath turns
+   green: `✓ Valid JSON · 118 lines · 2.3 KB`.
+2. Click **Analyze Now** (or press **Ctrl + Enter**).
+3. The right-hand panel fills in. Open the **Overview** tab to see the CTV
+   confidence score, then **Insights** for plain-English explanations of what
+   the payload contains.
+
+If you see that, everything works. 🎉
+
+To confirm the backend is healthy at any time, open
+**http://127.0.0.1:8000/health** — it should return
+`{"status":"ok","service":"Bid Analyzer"}`.
+
+**To stop the server**, click the terminal window and press **Ctrl + C**.
+To leave the virtual environment afterwards, type `deactivate`.
+
+### Step 7 — Getting updates later
+
+When the project is updated on GitHub, you do **not** re-clone it. From
+inside the project folder, pull the latest changes:
+
+```bash
+git pull origin main
+```
+
+If the update also changed `requirements.txt` (new or upgraded libraries),
+re-run the install so your venv matches — this is safe to run any time:
+
+```bash
+pip install -r requirements.txt
+```
+
+Then restart the server (Ctrl + C, then Step 5 again).
+
+> **Seeing "Your local changes would be overwritten by merge"?** You have
+> edited a file that the update also changes. To throw your edits away and
+> take the GitHub version:
+> ```bash
+> git checkout -- .
+> ```
+> To keep your edits and re-apply them on top of the update instead:
+> ```bash
+> git stash
+> ```
+> ```bash
+> git pull origin main
+> ```
+> ```bash
+> git stash pop
+> ```
+
+### Coming back to the project tomorrow
+
+Steps 1–4 are **one-time setup**. On any later day you only need:
+
+```bash
+cd Desktop/bid-analyzer
+```
+
+```bash
+# Windows:  .\venv\Scripts\Activate.ps1
+source venv/bin/activate
+```
+
+```bash
+python -m uvicorn app.main:app --reload
+```
+
+### Troubleshooting
+
+| What you see | What it means | Fix |
+|---|---|---|
+| `'python' is not recognized` / `command not found` | Python is not installed, or not on your PATH | Reinstall Python and tick **"Add python.exe to PATH"**. On macOS try `python3` |
+| `'git' is not recognized` | Git is not installed | Install Git, or use the ZIP method in Step 2 |
+| `running scripts is disabled on this system` | PowerShell's default script policy | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then activate again |
+| `No such file or directory: requirements.txt` | You are in the wrong folder | `cd` into the `bid-analyzer` folder you cloned |
+| `ModuleNotFoundError: No module named 'fastapi'` | The venv is not active, or Step 4 was skipped | Activate the venv (prompt shows `(venv)`), then re-run Step 4 |
+| `ERROR: [Errno 10048] address already in use` | Port 8000 is taken by another program | Run on a different port: `python -m uvicorn app.main:app --reload --port 8001` |
+| Browser shows "can't reach this page" | The server is not running | Check the terminal from Step 5 is still open and shows no error |
+| Page loads but looks unstyled or stale | Cached CSS/JS from an older version | Hard-refresh: **Ctrl + F5** (Windows) or **Cmd + Shift + R** (macOS) |
 
 ---
 
@@ -204,7 +431,7 @@ bid analyzer/
 │   │   └── helpers.py              # Safe dictionary access & type conversion utilities
 │   │
 │   ├── static/
-│   │   ├── app.js                  # Frontend UI logic (~1,300 lines of Vanilla JS)
+│   │   ├── app.js                  # Frontend UI logic (~1,580 lines of Vanilla JS)
 │   │   └── styles.css              # Design system styling & dark/light themes
 │   │
 │   ├── templates/
@@ -306,10 +533,17 @@ Translates raw spec integer codes into human labels:
 
 - **`templates/index.html`**:
   Clean HTML5 layout featuring:
-  - Header with theme toggle and tutorial link.
-  - Mode selector (`Request`, `Response`, `Compare`, `Batch`).
-  - Code Editor panel with line numbers and toolbar actions (`Prettify`, `Copy`, `Clear`).
-  - Results view featuring KPI Dashboard cards and tabbed navigation (`Overview`, `Insights`, `Request`, `Response`, `Compare`, `Signals`, `Cheatsheet`, `Warnings`, `Raw`).
+  - Header carrying the app identity, the mode selector (`Request`,
+    `Response`, `Compare`, `Batch`) as a segmented control, the theme toggle
+    and the tutorial link.
+  - Code Editor panel with line numbers and toolbar actions (`Format`,
+    `Upload`, `Copy`, `Clear`).
+  - Results view with KPI dashboard cards and tabbed navigation across ten
+    panels (`Overview`, `Insights`, `Request`, `Response`, `Compare`,
+    `Batch`, `Signals`, `Cheatsheet`, `Warnings`, `Raw`) — only the tabs the
+    current run can fill are shown.
+  - An inline SVG sprite defining every icon once, referenced with `<use>`,
+    so the static chrome and the panels `app.js` builds share one icon set.
 
 - **`static/styles.css`**:
   Vanilla CSS featuring a custom **Design System**:
@@ -318,8 +552,8 @@ Translates raw spec integer codes into human labels:
     script in `index.html` stamps `data-theme` before first paint so a
     light-preference machine does not flash dark.
   - Light mode overrides the *tokens* rather than the rules that consume
-    them — redefining `--primary-light` and `--accent-cyan` fixes every
-    consumer at once, instead of duplicating each selector.
+    them — redefining `--primary-light` fixes every consumer at once,
+    instead of duplicating each selector.
   - Dark surface steps (`--bg-app` → `--surface` → `--surface-alt`) are
     spaced ~9 CIE L\* apart so cards visibly lift off the page.
   - Burnt-orange brand palette over warm brown surfaces (dark) and warm cream
@@ -347,7 +581,7 @@ Translates raw spec integer codes into human labels:
 
 - **`static/app.js`**:
   Handles state management and interactive behavior:
-  - `switchMode()`: Handles mode tab switching without losing user text inputs, and updates the one-line mode hint in the selector bar.
+  - `switchMode()`: Handles mode switching without losing user text inputs, and updates the one-line mode hint shown in the input panel's header.
   - `analyzeAll()`: Sends async POST requests to the FastAPI backend.
   - `displayResults()`: Dynamically builds KPI metric cards, tabs, warning counters, and raw JSON views using vanilla DOM manipulation.
   - `setRelevantTabs()`: Hides result tabs the current run cannot fill (e.g. a request-only analysis shows 7 of the 10 tabs, batch shows 4), so the tab strip fits without horizontal scrolling.
@@ -445,6 +679,8 @@ FastAPI automatically generates interactive OpenAPI documentation at **`http://1
 | `POST` | `/fetch/url` | Safely fetches JSON content from a public URL | `JSON Body` |
 | `GET` | `/samples` | Returns bundled example JSON payloads | `None` |
 | `GET` | `/health` | Healthcheck endpoint (`{"status": "ok"}`) | `None` |
+| `GET` | `/` | Serves the main application page | `None` |
+| `GET` | `/tutorial` | Serves the OpenRTB learning tutorial page | `None` |
 
 ---
 
