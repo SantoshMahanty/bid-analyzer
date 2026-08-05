@@ -30,7 +30,7 @@ Welcome! Whether you are a computer science student, a junior developer, or an a
 |---|---|
 | Backend services | 13 Python modules (`app/services/`) |
 | API endpoints | 9 routes (`app/routes/`) |
-| Frontend | `app.js` (~1,580 lines) + `styles.css` (~1,870 lines), no build step |
+| Frontend | `app.js` (~1,580 lines) + `styles.css` (~1,550 lines), no build step |
 | Automated tests | 5 test files — **53 tests, all passing** |
 | Bundled sample payloads | 6 ready-to-use JSON files |
 

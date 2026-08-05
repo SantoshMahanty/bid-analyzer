@@ -1,78 +1,67 @@
 /* ==========================================================================
-   BID ANALYZER — DESIGN SYSTEM
-   Burnt-orange palette, mode switch in the header, and a fixed-height
-   two-panel workspace on desktop (§5b) where the editor and the results
-   scroll inside their own equal-sized boxes rather than growing the page.
-   Google Fonts (Outfit, Plus Jakarta Sans, JetBrains Mono).
+   BID ANALYZER — DESIGN SYSTEM (v2)
+   Dev-tool language: neutral near-black surfaces, hairline borders, one
+   burnt-orange accent, Geist + Geist Mono. Dials: variance 4 / motion 3 /
+   density 6 — a data tool, so structure over spectacle.
 
-   Section 11 onward holds the result-rendering primitives that app.js
-   emits at runtime. They live here rather than as inline styles so the
-   generated panels follow the theme; deleting them silently unstyles
-   every results tab, which is exactly what happened before this pass.
+   Locks:
+   - Radius scale: controls 8px (--radius-sm), containers 12px (--radius-md),
+     micro chrome (kbd, badges) 4px or full-pill. Nothing else.
+   - One accent: burnt orange. Status colors (pass/warn/fail/info) are
+     semantic state, not decoration.
+   - Shadows only where something floats (menus, toasts). Resting surfaces
+     separate with hairlines, not glow.
+
+   The fixed-height two-panel workspace on desktop (§4) is load-bearing:
+   app.js syncs --header-h and scrolls the editor gutter against the
+   textarea, so the metrics marked "must match" below really must.
+   Section 8 onward styles the result primitives app.js emits at runtime.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. DESIGN TOKENS & PALETTE
+   1. DESIGN TOKENS
    -------------------------------------------------------------------------- */
 :root {
-    /* Fonts */
-    --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
-    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    --font-heading: 'Geist', 'Segoe UI', system-ui, sans-serif;
+    --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Geist Mono', 'JetBrains Mono', Consolas, monospace;
 
-    /* Primary Brand Accents — burnt orange.
-       Orange is a light hue, so the shade that reads as "orange" on a dark
-       panel (#f97316) only manages 3.0:1 under white text and cannot carry a
-       label. Accent duty and fill duty are therefore split: --primary tints
-       borders and icons, --primary-solid is the darker shade used wherever
-       white text sits on top. */
+    /* Brand accent — burnt orange. Accent duty and fill duty stay split:
+       --primary tints icons, borders and focus rings; --primary-solid is the
+       darker shade used wherever white text sits on top (4.8:1 on itself).
+       In dark mode the filled button flips to bright orange with near-black
+       text instead (6.8:1), which is why the btn tokens exist separately. */
     --primary: #f97316;
     --primary-light: #fdba74;
     --primary-dark: #9a3412;
     --primary-solid: #c2410c;
-    --primary-glow: rgba(249, 115, 22, 0.35);
+    --primary-tint: rgba(249, 115, 22, 0.14);
+    --primary-tint-soft: rgba(249, 115, 22, 0.07);
 
-    /* Translucent brand washes. Previously hardcoded as rgba(99, 102, 241, …)
-       at five call sites, which is why the old indigo survived every earlier
-       recolour attempt. */
-    --primary-tint: rgba(249, 115, 22, 0.15);
-    --primary-tint-soft: rgba(249, 115, 22, 0.1);
+    --btn-primary-bg: #f97316;
+    --btn-primary-bg-hover: #fb923c;
+    --btn-primary-fg: #1c0f06;
 
-    --accent-amber: #fbbf24;
-    --accent-rose: #fb7185;
+    /* Dark surfaces — neutral warm-stone, not brown. The old orange-cast
+       browns tinted every pixel; a near-neutral base lets the one accent
+       actually read as the accent. Steps stay far enough apart that panels
+       lift off the page with borders alone. */
+    --bg-app: #0e0c0b;
+    --surface: #161312;
+    --surface-alt: #201c1a;
+    --surface-border: #2e2926;
+    --surface-border-hover: #4d453f;
 
-    /* Every stop clears 4.5:1 under white: the Analyze label is 16.8px bold,
-       which is below the large-text threshold and needs the full ratio. */
-    --gradient-brand: linear-gradient(135deg, #c2410c 0%, #9a3412 55%, #7c2d12 100%);
-    --gradient-glow: linear-gradient(135deg, rgba(249, 115, 22, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%);
-    --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%);
+    --text-primary: #f4f1ee;
+    --text-secondary: #cfc8c2;
+    --text-muted: #98908a;
+    --kv-key: #fdba74;
 
-    /* Dark Theme Surfaces — warm, orange-cast browns rather than navy.
-       Steps stay ~9 CIE L* apart so cards keep lifting off the page; only the
-       hue has moved. */
-    --bg-app: #0d0704;
-    --bg-mesh-1: rgba(249, 115, 22, 0.14);
-    --bg-mesh-2: rgba(217, 119, 6, 0.1);
+    --header-bg: rgba(14, 12, 11, 0.82);
+    --header-border: rgba(255, 255, 255, 0.07);
+    --toolbar-bg: rgba(0, 0, 0, 0.22);
 
-    --surface: #23150e;
-    --surface-alt: #3a251a;
-    --surface-border: #5c3d2c;
-    --surface-border-hover: #8a5f45;
-
-    /* Warm-tinted neutrals: pure grey text on a brown panel reads as dirty. */
-    --text-primary: #fdf6f1;
-    --text-secondary: #e3d0c3;
-    --text-muted: #bfa392;
-    --kv-key: #ffb787;
-
-    /* Translucent panels. Tokenised so light mode can override them —
-       hardcoding the dark shell left a smudge across the light theme. */
-    --header-bg: rgba(35, 21, 14, 0.85);
-    --header-border: rgba(255, 255, 255, 0.08);
-    --toolbar-bg: rgba(13, 7, 4, 0.5);
-    --title-gradient: linear-gradient(135deg, #ffffff 0%, #ffd9bf 100%);
-
-    /* Status Badges */
+    /* Status. Foregrounds clear 4.5:1 on --surface and --surface-alt. */
     --pass-bg: rgba(16, 185, 129, 0.12);
     --pass-border: rgba(16, 185, 129, 0.35);
     --pass-fg: #34d399;
@@ -89,64 +78,65 @@
     --info-border: rgba(6, 182, 212, 0.35);
     --info-fg: #38bdf8;
 
-    /* Shadows & Radii */
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 20px -2px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 20px 35px -4px rgba(0, 0, 0, 0.6);
-    --shadow-glow: 0 0 25px rgba(249, 115, 22, 0.3);
+    /* Floating chrome only — resting cards use hairlines. */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
 
+    --radius-xs: 4px;
     --radius-sm: 8px;
     --radius-md: 12px;
-    --radius-lg: 18px;
-    --radius-xl: 24px;
+    --radius-lg: 12px;
+    --radius-xl: 12px;
     --radius-full: 9999px;
 
-    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Specific properties, not `all`: a theme flip re-transitions every
+       animatable property on every element otherwise (measured: 111 live
+       transitions from one toggle). */
+    --transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 
     /* Layout metrics. --header-h is the offset the sticky results tab strip
        parks below; syncHeaderOffset() in app.js overwrites it with the
        header's measured height on load and on every resize, so the value
        here is only the pre-script fallback. */
     --page-max: 1560px;
-    --page-pad: 2rem;
-    --header-h: 70px;
+    --page-pad: 1.5rem;
+    --header-h: 57px;
     --editor-max: 500px;
 }
 
-/* Light Mode Overrides — warm cream, not cold white.
-   --primary-light is redefined rather than duplicating the rules that consume
-   it: the shade that reads as orange on a dark panel (#fdba74) collapses to
-   1.5:1 on cream, so on light it becomes the darkest brand shade instead.
-   Redefining the token fixes every consumer at once. */
+/* Light mode — clean off-white, not heavy cream. --primary-light flips to
+   the darkest brand shade: the tint that reads as orange on near-black
+   collapses to 1.5:1 on white, and redefining the token fixes every
+   consumer at once. */
 html[data-theme="light"] {
     --primary: #ea580c;
     --primary-light: #9a3412;
-    --primary-solid: #b45309;
-    --primary-glow: rgba(234, 88, 12, 0.3);
-    --primary-tint: rgba(234, 88, 12, 0.14);
-    --primary-tint-soft: rgba(234, 88, 12, 0.1);
+    --primary-solid: #c2410c;
+    --primary-tint: rgba(234, 88, 12, 0.12);
+    --primary-tint-soft: rgba(234, 88, 12, 0.06);
 
-    --bg-app: #fdf6ef;
-    --bg-mesh-1: rgba(249, 115, 22, 0.08);
-    --bg-mesh-2: rgba(217, 119, 6, 0.07);
+    --btn-primary-bg: #c2410c;
+    --btn-primary-bg-hover: #9a3412;
+    --btn-primary-fg: #ffffff;
 
+    --bg-app: #faf9f7;
     --surface: #ffffff;
-    --surface-alt: #fbeee3;
-    --surface-border: #eed9c6;
-    --surface-border-hover: #d9b394;
+    --surface-alt: #f4f1ee;
+    --surface-border: #e5e0db;
+    --surface-border-hover: #c6bcb3;
 
-    --text-primary: #2a1710;
-    --text-secondary: #5c4438;
-    --text-muted: #7a5b49;
+    --text-primary: #211b17;
+    --text-secondary: #4f463f;
+    --text-muted: #756a62;
     --kv-key: #9a3412;
 
-    --header-bg: rgba(255, 255, 255, 0.88);
+    --header-bg: rgba(250, 249, 247, 0.85);
     --header-border: var(--surface-border);
-    --toolbar-bg: #fdf4ec;
-    --title-gradient: linear-gradient(135deg, #2a1710 0%, #7c2d12 100%);
+    --toolbar-bg: #faf8f6;
 
-    /* Status foregrounds all sat below 4.5:1 on white (3.19 – 4.10).
-       These clear AA on both --surface and --surface-alt. */
+    /* Status foregrounds re-tuned for white: each clears AA on both
+       --surface and --surface-alt. */
     --pass-bg: rgba(16, 185, 129, 0.1);
     --pass-border: rgba(4, 120, 87, 0.3);
     --pass-fg: #047857;
@@ -160,52 +150,78 @@ html[data-theme="light"] {
     --fail-fg: #b91c1c;
 
     --info-bg: rgba(6, 182, 212, 0.1);
-    --info-border: rgba(3, 105, 161, 0.3);
-    --info-fg: #0369a1;
+    --info-border: rgba(14, 116, 144, 0.3);
+    --info-fg: #0e7490;
 
-    --shadow-sm: 0 2px 4px rgba(69, 26, 3, 0.05);
-    --shadow-md: 0 8px 16px -2px rgba(69, 26, 3, 0.09);
-    --shadow-lg: 0 20px 30px -4px rgba(69, 26, 3, 0.11);
-    --shadow-glow: 0 0 20px rgba(234, 88, 12, 0.22);
+    --shadow-sm: 0 1px 2px rgba(33, 27, 23, 0.08);
+    --shadow-md: 0 4px 16px rgba(33, 27, 23, 0.1);
+    --shadow-lg: 0 12px 32px rgba(33, 27, 23, 0.16);
 }
 
 /* --------------------------------------------------------------------------
-   2. BASE RESET & ANIMATED BACKGROUND
+   2. BASE
    -------------------------------------------------------------------------- */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+*,
+*::before,
+*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body {
+html { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+
+body {
     font-family: var(--font-sans);
+    font-size: 0.9375rem;
     background: var(--bg-app);
     color: var(--text-primary);
-    line-height: 1.6;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
 }
 
-/* Ambient Glowing Background Mesh */
-.animated-bg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background:
-        radial-gradient(circle at 10% 10%, var(--bg-mesh-1) 0%, transparent 40%),
-        radial-gradient(circle at 90% 90%, var(--bg-mesh-2) 0%, transparent 40%);
-    z-index: -1;
-    pointer-events: none;
-    animation: mesh-float 15s ease-in-out infinite alternate;
+/* Retired chrome: the ambient mesh div is still emitted by older cached
+   templates; make sure it never paints. */
+.animated-bg { display: none; }
+
+.icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    vertical-align: -3px;
+}
+.icon-lg { width: 20px; height: 20px; }
+.icon-xl { width: 40px; height: 40px; }
+
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
-@keyframes mesh-float {
-    0% { transform: scale(1) translateY(0); }
-    100% { transform: scale(1.04) translateY(-10px); }
+::selection { background: var(--primary-tint); }
+
+kbd {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--surface-border);
+    border-bottom-width: 2px;
+    background: var(--surface-alt);
+    color: var(--text-secondary);
 }
+.kbd-group { display: inline-flex; gap: 3px; }
+
+/* Panel scrollbars. */
+* { scrollbar-width: thin; scrollbar-color: var(--surface-border) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+    background: var(--surface-border);
+    border-radius: var(--radius-full);
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--surface-border-hover); }
 
 .app {
     min-height: 100vh;
@@ -214,23 +230,21 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   3. HEADER BAR (GLASSMORPHISM)
+   3. HEADER
    -------------------------------------------------------------------------- */
 .header {
     background: var(--header-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--header-border);
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: var(--shadow-md);
 }
 
 /* nowrap + a fixed min-height keeps this one row at every width. Left to
-   wrap, it grew to 121px on a 375px screen — 15% of the viewport spent on
-   chrome, and a moving target for the sticky offset the results tab strip
-   parks against. Everything inside shrinks or drops out instead. */
+   wrap it becomes a moving target for the sticky offset the results tab
+   strip parks against; everything inside shrinks or drops out instead. */
 .header-main {
     max-width: var(--page-max);
     margin: 0 auto;
@@ -239,221 +253,163 @@ html, body {
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    min-height: 42px;
-    padding: 0.85rem var(--page-pad);
+    min-height: 40px;
+    padding: 0.5rem var(--page-pad);
 }
 
 .header-left {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.65rem;
     min-width: 0;
 }
 
-.header-left .header-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .logo-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: var(--radius-md);
-    background: var(--gradient-brand);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #ffffff;
-    box-shadow: var(--shadow-glow);
+    width: 30px;
+    height: 30px;
     flex: 0 0 auto;
+    border-radius: var(--radius-sm);
+    background: var(--primary-tint);
+    border: 1px solid var(--primary-tint);
+    color: var(--primary);
 }
 
 .header-title {
     font-family: var(--font-heading);
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    background: var(--title-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .header-right {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.35rem;
     flex: 0 0 auto;
 }
 
-.header-btn, .header-link {
+.header-btn,
+.header-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.55rem 1.1rem;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    font-size: 0.88rem;
+    gap: 0.4rem;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
     text-decoration: none;
     cursor: pointer;
     transition: var(--transition);
-    color: var(--text-primary);
+}
+
+.header-btn:hover,
+.header-link:hover {
     background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
+    color: var(--text-primary);
 }
 
-.header-btn:hover, .header-link:hover {
-    background: var(--surface-border);
-    border-color: var(--surface-border-hover);
-    transform: translateY(-1px);
-}
-
-/* --------------------------------------------------------------------------
-   4. MAIN LAYOUT & LEFT-ALIGNED MODE SELECTOR
-   -------------------------------------------------------------------------- */
-.main {
-    max-width: var(--page-max);
-    margin: 0 auto;
-    width: 100%;
-    padding: 1.75rem var(--page-pad) 3rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.75rem;
-    flex: 1;
-}
-
-/* Header-resident mode switch. No card chrome here — inside the header it is
-   part of the app bar, and the surface/border/shadow it carried as a standalone
-   row would read as a panel floating in another panel. */
+/* Mode switch: segmented control in the app chrome, since it governs the
+   whole workspace. The "Mode" text label is redundant next to four named
+   options; the group keeps its aria-label. */
 .mode-selector {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    min-width: 0;
-    flex: 0 1 auto;
-}
-
-/* Commentary on the current mode, not a control — muted and set apart from
-   the "Input Data" heading it shares a row with. */
-.mode-hint {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
     min-width: 0;
 }
 
-.mode-hint #mode-hint-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+.selector-label { display: none; }
 
-.kbd-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    flex: 0 0 auto;
-}
-
-kbd {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 600;
-    line-height: 1;
-    padding: 0.25rem 0.4rem;
-    border-radius: 5px;
-    color: var(--text-secondary);
-    background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
-    border-bottom-width: 2px;
-}
-
-.selector-label {
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-    flex: 0 0 auto;
-}
-
-/* Segmented control: one inset track, four segments, nowrap so it never
-   becomes a second header row. */
 .selector-options {
-    display: flex;
-    gap: 0.25rem;
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
     background: var(--surface-alt);
-    padding: 0.25rem;
-    border-radius: var(--radius-md);
     border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
     min-width: 0;
 }
-
 .selector-options::-webkit-scrollbar { display: none; }
 
 .mode-option {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.9rem;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    border: none;
     background: transparent;
-    color: var(--text-secondary);
-    font-family: var(--font-heading);
-    font-size: 0.85rem;
-    font-weight: 700;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
     transition: var(--transition);
 }
 
-.mode-option:hover {
-    color: var(--text-primary);
-}
+.mode-option:hover { color: var(--text-primary); }
 
 .mode-option.active {
-    background: var(--primary-solid);
-    color: #ffffff;
-    box-shadow: var(--shadow-glow);
+    background: var(--surface);
+    border-color: var(--surface-border);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
 }
 
+.mode-option.active .icon { color: var(--primary); }
+
 /* --------------------------------------------------------------------------
-   5. DYNAMIC CONTENT LAYOUTS
+   4. WORKSPACE LAYOUT
    -------------------------------------------------------------------------- */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: 1.25rem var(--page-pad);
+}
+
 /* Input left, results right — but not 50/50. The results panel carries a
    ten-tab strip, wide batch tables and three-across tiles, while the input
-   panel only has to hold a code editor. At 1fr 1fr the tab strip overflowed
-   by 732px (more of it hidden than visible) and every result grid collapsed
-   to one column. 5:7 gives the analysis the room it actually needs. */
+   panel only holds a code editor. 5:7 gives the analysis the room it
+   actually needs. */
 .content.split-layout {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    gap: 1.75rem;
+    gap: 1.25rem;
     align-items: stretch;
     width: 100%;
 }
 
-/* --------------------------------------------------------------------------
-   5b. FIXED WORKSPACE (desktop)
-   The two panels are one workspace sized to the viewport, not two documents
-   that grow with their content. Before this, pasting a large payload pushed
-   the editor down the page and the results panel ended up a different height
-   from the input panel beside it.
+/* Compare mode stacks: the two-editor grid needs the full page width. */
+.content.compare-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+}
 
-   No magic offset anywhere: .app is exactly the viewport, .main flexes into
-   what the header leaves, and .content takes what the mode bar leaves. Every
-   level sets `min-height: 0` because a flex item's default `min-height:auto`
-   refuses to shrink below its content — which is precisely how an inner
-   scroll region silently becomes an outer one.
-   -------------------------------------------------------------------------- */
+/* Fixed-height workspace on desktop: the editor and the results scroll
+   inside equal boxes rather than growing the page. Every level sets
+   `min-height: 0` because a flex item's default `min-height: auto` refuses
+   to shrink below its content — which is precisely how an inner scroll
+   region silently becomes an outer one. */
 @media (min-width: 1181px) {
     .app { height: 100vh; }
 
@@ -479,9 +435,8 @@ kbd {
         min-height: 0;
     }
 
-    /* Editor fills the stack and scrolls inside itself. max-height is
-       explicitly dropped: the 500px cap that keeps the editor honest in the
-       document-flow layouts would here leave a gap under a tall panel. */
+    /* Editor fills the stack and scrolls inside itself. The 500px cap that
+       keeps it honest in document-flow layouts would leave a gap here. */
     .split-layout .editor-shell {
         flex: 1;
         min-height: 0;
@@ -495,13 +450,7 @@ kbd {
         resize: none;
     }
 
-    .split-layout .results-placeholder {
-        flex: 1;
-        min-height: 0;
-    }
-
-    /* Results scroll under a tab strip that stays put, so the tabs are
-       reachable at any scroll depth without needing position: sticky. */
+    /* Results scroll under a tab strip that stays put. */
     .split-layout .tab-panels {
         flex: 1;
         min-height: 0;
@@ -509,51 +458,11 @@ kbd {
         margin-bottom: 0;
     }
 
-    .split-layout .results-tabs {
-        position: static;
-        flex: 0 0 auto;
+    .split-layout .results-placeholder {
+        flex: 1;
+        min-height: 0;
     }
 }
-
-/* Between 1180 and 1400 the 5:7 split squeezes the editor toolbar into two
-   rows, so the tilt eases off before the columns stack. */
-@media (max-width: 1400px) {
-    .content.split-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    }
-}
-
-@media (max-width: 1180px) {
-    .content.split-layout {
-        grid-template-columns: 1fr;
-    }
-}
-
-.content.compare-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    width: 100%;
-}
-
-.section {
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-xl);
-    padding: 1.75rem;
-    box-shadow: var(--shadow-lg);
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    width: 100%;
-    min-width: 0;
-}
-
-/* Mode panels. Visibility lives here rather than in inline styles set by
-   switchMode(), because an inline `display: block` outranks the flex layout
-   the fixed workspace needs the active panel to use. */
-.mode-content { display: none; }
-.mode-content.active { display: block; }
 
 .split-layout .mode-content.active,
 .split-layout .input-container,
@@ -566,301 +475,245 @@ kbd {
 .results-content[hidden],
 .results-placeholder[hidden] { display: none; }
 
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.section-header h2 {
-    font-family: var(--font-heading);
-    font-size: 1.25rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    color: var(--text-primary);
-}
-
 /* --------------------------------------------------------------------------
-   6. COMPARE MODE: SIDE-BY-SIDE GRID (REQUEST LEFT, RESPONSE RIGHT)
+   5. SECTIONS
    -------------------------------------------------------------------------- */
-.compare-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    width: 100%;
-}
-
-@media (max-width: 1180px) {
-    .compare-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.compare-card {
+.section {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    padding: 1.1rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
-    background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem;
-    box-shadow: var(--shadow-md);
-    transition: var(--transition);
     min-width: 0;
 }
 
-.compare-card:hover {
-    border-color: var(--surface-border-hover);
+.section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
 }
+
+.section-header h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-heading);
+    font-size: 0.9375rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+}
+
+.section-header h2 .icon { color: var(--primary); }
+
+.results-header { align-items: center; }
+
+.mode-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    min-width: 0;
+}
+
+.mode-hint #mode-hint-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mode-content { display: none; }
+.mode-content.active { display: block; }
+
+.input-container { min-width: 0; }
 
 /* --------------------------------------------------------------------------
-   7. INPUT TABS & CODE EDITOR TOOLBAR
+   6. EDITOR STACK
+   One seamless card: source strip → toolbar → code area → status bar.
    -------------------------------------------------------------------------- */
-/* Editor Toolbar & Code Area */
-.input-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-/* One seamless unit: source strip → toolbar → code → status bar. The rows
-   used to be separate blocks inside a `gap: 0.75rem` column while still
-   declaring `border-bottom: none`, so each rendered as an open-bottomed box
-   floating above the next. Radii are applied to the first and last child so
-   the stack works with or without the optional strips. */
 .editor-stack {
-    display: flex;
-    flex-direction: column;
-    border-radius: var(--radius-md);
-}
-
-.editor-stack > :first-child {
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.editor-stack > :last-child {
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
-.editor-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    background: var(--surface-alt);
-    padding: 0.6rem 1rem;
     border: 1px solid var(--surface-border);
-    border-bottom: none;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    overflow: hidden;
+    min-width: 0;
 }
 
-/* Where the payload comes from: samples, a URL, or (batch) the entry type.
-   One row rather than the previous two stacked rows, which pushed the code
-   area 250px below the heading that named it. */
+.editor-stack > * + * { border-top: 1px solid var(--surface-border); }
+
 .source-strip {
     display: flex;
     align-items: center;
-    gap: 0.6rem 1.25rem;
+    justify-content: space-between;
+    gap: 0.75rem 1.25rem;
     flex-wrap: wrap;
+    padding: 0.6rem 0.85rem;
     background: var(--toolbar-bg);
-    border: 1px solid var(--surface-border);
-    border-bottom: none;
-    padding: 0.5rem 1rem;
 }
 
 .source-group {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
     min-width: 0;
 }
 
-.source-url {
-    flex: 1 1 240px;
-}
+.source-url { flex: 1 1 260px; }
 
 .source-note {
-    font-size: 0.78rem;
     color: var(--text-muted);
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
 .tools-label {
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 800;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--text-muted);
     flex: 0 0 auto;
 }
 
 .samples-grid {
     display: flex;
-    align-items: center;
-    gap: 0.35rem;
     flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
 }
 
-/* Sample buttons. app.js emits .sample-pill; the compact sizing lives on
-   that class directly rather than on a .sample-card override, which is why
-   the previous !important chain is gone. */
 .sample-pill {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.3rem 0.65rem;
-    font-family: var(--font-heading);
-    font-size: 0.78rem;
-    font-weight: 700;
-    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.65rem;
     border: 1px solid var(--surface-border);
-    background: var(--surface-alt);
+    border-radius: var(--radius-full);
+    background: var(--surface);
     color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     cursor: pointer;
     transition: var(--transition);
 }
 
 .sample-pill:hover {
-    color: var(--text-primary);
     border-color: var(--primary);
+    color: var(--text-primary);
     background: var(--primary-tint-soft);
-    transform: translateY(-1px);
 }
+
+.sample-pill .icon { width: 13px; height: 13px; color: var(--text-muted); }
+.sample-pill:hover .icon { color: var(--primary); }
 
 .url-input-group {
     display: flex;
-    align-items: center;
     gap: 0.4rem;
     flex: 1;
-    min-width: 220px;
-}
-
-.url-input-group .select-input {
-    flex: 1;
-    padding: 0.35rem 0.65rem;
-    font-size: 0.82rem;
-}
-
-.input-label {
-    font-family: var(--font-heading);
-    font-size: 0.82rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.editor-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-}
-
-/* Text inputs and selects. Without this rule the browser falls back to its
-   native control — white background, black Arial text, no padding — which
-   punched two bright boxes through the dark theme. */
-.select-input {
-    padding: 0.55rem 0.85rem;
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-sans);
-    font-size: 0.88rem;
-    background: var(--surface);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: var(--transition);
     min-width: 0;
 }
 
-.select-input::placeholder {
-    color: var(--text-muted);
+.url-input-group .select-input { flex: 1; min-width: 0; }
+
+.select-input {
+    height: 32px;
+    padding: 0 0.65rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-app);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    transition: var(--transition);
 }
 
-.select-input:hover {
-    border-color: var(--surface-border-hover);
-}
-
+.select-input::placeholder { color: var(--text-muted); }
+.select-input:hover { border-color: var(--surface-border-hover); }
 .select-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-glow);
+    box-shadow: 0 0 0 3px var(--primary-tint);
+}
+.select-input option { background: var(--surface); color: var(--text-primary); }
+
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.85rem;
 }
 
-/* Native dropdown lists inherit the page colours, not the control's. */
-.select-input option {
-    background: var(--surface);
-    color: var(--text-primary);
+.input-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
-/* max-height matters here, not just on the textarea. The shell is a flex
-   row and the gutter is a plain block, so the gutter's full content height
-   set the row height: a 118-line payload produced a 2505px gutter and blew
-   the whole input card out to 2930px while the textarea sat capped at 500.
-   Capping the shell to the same limit lets the gutter overflow and scroll
-   in step with the textarea instead of driving the layout. */
+.input-label .icon { color: var(--primary); width: 14px; height: 14px; }
+
+.editor-actions {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
 .editor-shell {
     display: flex;
     position: relative;
     max-height: var(--editor-max);
     background: var(--bg-app);
-    border: 1px solid var(--surface-border);
     overflow: hidden;
-    transition: var(--transition);
+    transition: box-shadow 0.16s ease;
 }
 
 .editor-shell:focus-within {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-glow);
+    box-shadow: inset 0 0 0 1px var(--primary);
 }
 
-/* Invalid JSON tints the whole frame, not just the status line, so the
-   error is visible while the eye is still on the code. */
+.editor-shell.has-error:focus-within,
 .editor-shell.has-error {
-    border-color: var(--fail-border);
-}
-
-.editor-shell.has-error:focus-within {
-    box-shadow: 0 0 0 3px var(--fail-bg);
-}
-
-/* Drag & drop. The handlers used to target #dropzone-* elements that no
-   longer exist in the template, so dropping a file did nothing at all;
-   they now target the editor itself, which is where a user aims. */
-.editor-shell.drag-over {
-    border-color: var(--primary);
-    border-style: dashed;
-    box-shadow: 0 0 0 3px var(--primary-glow);
+    box-shadow: inset 0 0 0 1px var(--fail-border);
 }
 
 .editor-shell.drag-over::after {
-    content: "Drop file to load";
+    content: 'Drop file to load';
     position: absolute;
-    inset: 0;
+    inset: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-heading);
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    color: var(--primary-light);
-    background: var(--bg-app);
-    opacity: 0.92;
+    border: 1.5px dashed var(--primary);
+    border-radius: var(--radius-sm);
+    background: var(--primary-tint-soft);
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.875rem;
     pointer-events: none;
+    z-index: 2;
 }
 
+/* Gutter and textarea use identical font metrics and top padding — the
+   gutter is scrolled to the textarea's scrollTop by renderGutter(), and any
+   drift between the two misaligns every line number. */
 .editor-gutter {
     padding: 0.85rem 0.6rem;
-    background: var(--surface-alt);
+    background: var(--surface);
     border-right: 1px solid var(--surface-border);
     color: var(--text-muted);
     font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-size: 0.8125rem;
     line-height: 1.6;
     text-align: right;
     user-select: none;
@@ -871,11 +724,10 @@ kbd {
     flex: 0 0 auto;
 }
 
-/* The line number the JSON parser blamed. */
 .editor-gutter .gutter-error {
     display: block;
     color: var(--fail-fg);
-    font-weight: 800;
+    font-weight: 700;
     background: var(--fail-bg);
     margin: 0 -0.6rem;
     padding: 0 0.6rem;
@@ -885,293 +737,236 @@ kbd {
     flex: 1;
     min-width: 0;
     min-height: 280px;
-    max-height: 500px;
+    max-height: var(--editor-max);
     padding: 0.85rem;
     border: none;
     background: transparent;
     color: var(--text-primary);
     font-family: var(--font-mono);
-    font-size: 0.88rem;
+    font-size: 0.8125rem;
     line-height: 1.6;
     resize: vertical;
     outline: none;
 }
 
-.code-input::placeholder {
-    color: var(--text-muted);
-}
+.code-input::placeholder { color: var(--text-muted); }
 
-.input-hint {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-/* Editor status bar, appended after .editor-shell by setupJSONValidation().
-   It had no styling at all, so "✗ Unexpected token…" rendered as loose body
-   text under the panel. As the last row of the stack it now reads as the
-   editor's own status line, and it always says something — line and size
-   counts when the JSON is fine, the failing line when it isn't. */
+/* Live validity bar appended under the shell by app.js. */
 .json-status {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
     padding: 0.4rem 0.85rem;
     font-family: var(--font-mono);
-    font-size: 0.76rem;
-    line-height: 1.5;
-    background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
-    border-top: none;
+    font-size: 0.75rem;
     color: var(--text-muted);
-    word-break: break-word;
+    background: var(--toolbar-bg);
 }
 
-.json-status.valid {
-    background: var(--pass-bg);
-    border-color: var(--pass-border);
-    color: var(--pass-fg);
+.json-status.valid { color: var(--pass-fg); }
+.json-status.invalid { color: var(--fail-fg); }
+
+/* Compare mode: two editors side by side. */
+.compare-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
 }
 
-.json-status.invalid {
-    background: var(--fail-bg);
-    border-color: var(--fail-border);
-    color: var(--fail-fg);
-}
+.compare-card { min-width: 0; }
 
 /* --------------------------------------------------------------------------
-   8. BUTTONS & MAIN ACTION BAR
+   7. BUTTONS
    -------------------------------------------------------------------------- */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.25rem;
-    border-radius: var(--radius-md);
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.9rem;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
     cursor: pointer;
     transition: var(--transition);
-    border: 1px solid transparent;
-    background: var(--surface-alt);
+}
+
+.btn:hover {
+    border-color: var(--surface-border-hover);
     color: var(--text-primary);
 }
 
-.btn:focus-visible,
-.mode-option:focus-visible,
-.tab-button:focus-visible,
-.input-method-tab:focus-visible,
-.sample-pill:focus-visible,
-.header-btn:focus-visible,
-.header-link:focus-visible {
-    outline: 2px solid var(--primary-light);
-    outline-offset: 2px;
-}
+.btn:active { transform: translateY(1px); }
+
+.btn-small { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+.btn-small .icon { width: 13px; height: 13px; }
 
 .btn-primary {
-    background: var(--gradient-brand);
-    color: #ffffff;
-    box-shadow: var(--shadow-glow);
+    background: var(--btn-primary-bg);
+    border-color: transparent;
+    color: var(--btn-primary-fg);
+    font-weight: 600;
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 26px var(--primary-glow);
-}
-
-.btn-primary:active {
-    transform: translateY(0);
+    background: var(--btn-primary-bg-hover);
+    border-color: transparent;
+    color: var(--btn-primary-fg);
 }
 
 .btn-secondary {
-    background: var(--surface-alt);
-    color: var(--text-primary);
+    background: transparent;
     border-color: var(--surface-border);
+    color: var(--text-secondary);
 }
 
 .btn-secondary:hover {
-    background: var(--surface-border);
-    border-color: var(--surface-border-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-tint-soft);
 }
 
 .btn-ghost {
     background: transparent;
+    border-color: transparent;
     color: var(--text-muted);
 }
 
-.btn-ghost:hover {
-    background: var(--surface-alt);
-    color: var(--text-primary);
-}
-
-/* 0.65rem, not 0.75rem: the four editor actions plus their label came to
-   525px in a 522px toolbar, so the row wrapped for the sake of 3px. */
-.btn-small {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.78rem;
-    border-radius: var(--radius-sm);
-}
+.btn-ghost:hover { color: var(--text-primary); background: var(--surface-alt); }
 
 .btn-large {
-    padding: 0.9rem 2.5rem;
-    font-size: 1.05rem;
-    font-weight: 800;
-    border-radius: var(--radius-lg);
+    padding: 0.7rem 1.5rem;
+    font-size: 0.9375rem;
+    width: 100%;
 }
 
-/* Sticky action bar. Analyse sits below a 280px+ textarea, so without this
-   a real payload has to be scrolled past before it can be submitted. The
-   negative inline margins pull it out to the panel edges — at the section's
-   1.75rem padding it otherwise left a gutter each side that content scrolled
-   through, so the bar looked detached from the card it belongs to. */
+/* Sticky action bar at the input panel's foot; the surface background stops
+   editor content scrolling through it. */
 .button-group {
     position: sticky;
     bottom: 0;
     z-index: 5;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.85rem 1.75rem;
-    margin: 0.5rem -1.75rem -1.75rem;
-    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    gap: 0.6rem;
+    padding-top: 0.9rem;
+    margin-top: auto;
     background: var(--surface);
-    border-top: 1px solid var(--surface-border);
 }
 
 /* --------------------------------------------------------------------------
-   9. RESULTS SECTION (FULL-WIDTH DASHBOARD)
+   8. RESULTS: PLACEHOLDER, TABS, PANELS
    -------------------------------------------------------------------------- */
-/* No margin-top: in a `align-items: start` grid it pushed this card 16px
-   below the input card it sits beside, so the two panel headings never
-   lined up. */
-.results-section {
-    width: 100%;
-}
-
 .results-placeholder {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 280px;
-    color: var(--text-muted);
     text-align: center;
-    gap: 0.5rem;
-    padding: 1rem 0;
+    gap: 0.4rem;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
 }
 
 .placeholder-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full);
+    background: var(--primary-tint-soft);
+    border: 1px solid var(--surface-border);
     color: var(--primary);
-    opacity: 0.55;
     margin-bottom: 0.5rem;
 }
 
 .placeholder-title {
     font-family: var(--font-heading);
-    font-size: 1.15rem;
-    font-weight: 800;
+    font-size: 1.05rem;
+    font-weight: 650;
     color: var(--text-primary);
 }
 
-.placeholder-sub {
-    font-size: 0.9rem;
-}
+.placeholder-sub { font-size: 0.875rem; }
+.placeholder-sub strong { color: var(--text-secondary); }
 
 .placeholder-steps {
     list-style: none;
-    display: grid;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    text-align: left;
-    font-size: 0.85rem;
-}
-
-.placeholder-steps li {
+    margin-top: 1.1rem;
     display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.55rem 0.85rem;
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-alt);
-    color: var(--text-secondary);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.8125rem;
+    text-align: left;
 }
 
-.placeholder-steps strong { color: var(--text-primary); }
-.placeholder-steps .icon { color: var(--primary-light); }
+.placeholder-steps li { display: flex; align-items: center; gap: 0.55rem; }
+.placeholder-steps .icon { color: var(--primary); width: 15px; height: 15px; }
+.placeholder-steps strong { color: var(--text-secondary); font-weight: 600; }
 
-/* Results Tab Bar. Sticks below the page header so a long result list can be
-   scrolled without losing the way back to the other tabs. The negative
-   inline margins let the sticky background span the full card width instead
-   of leaving the padding column transparent. */
+/* Tab strip. Sticks below the page header so a long result list can be
+   scrolled without losing the way back; negative inline margins let the
+   strip and its hairline span the full card width. */
 .results-tabs {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.15rem;
     overflow-x: auto;
     position: sticky;
     top: var(--header-h);
     z-index: 6;
-    padding: 0.35rem 1.75rem 0.5rem;
-    margin: -0.35rem -1.75rem 1.25rem;
+    padding: 0 1.25rem;
+    margin: 0 -1.25rem 1rem;
     background: var(--surface);
     border-bottom: 1px solid var(--surface-border);
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    flex: 0 0 auto;
 }
+.results-tabs::-webkit-scrollbar { display: none; }
 
 .tab-button {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.55rem 0.8rem;
-    border-radius: var(--radius-md);
+    gap: 0.4rem;
+    padding: 0.5rem 0.7rem;
     border: none;
+    /* Active state draws a 2px accent rule on top of the strip's hairline. */
+    box-shadow: inset 0 -2px 0 transparent;
     background: transparent;
-    color: var(--text-secondary);
-    font-family: var(--font-heading);
-    font-size: 0.86rem;
-    font-weight: 700;
-    cursor: pointer;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
     white-space: nowrap;
+    cursor: pointer;
     transition: var(--transition);
 }
 
-/* Tabs the current run cannot fill are removed rather than left to open a
-   "Not applicable" panel. Explicit, because the inline-flex above would
-   otherwise beat the UA [hidden] rule. */
+.tab-button:hover { color: var(--text-primary); }
+.tab-button.active {
+    color: var(--text-primary);
+    box-shadow: inset 0 -2px 0 var(--primary);
+}
+.tab-button.active .icon { color: var(--primary); }
 .tab-button[hidden] { display: none; }
 
-.tab-button:hover {
-    color: var(--text-primary);
-    background: var(--surface-alt);
-}
-
-.tab-button.active {
-    color: var(--primary-light);
-    background: var(--primary-tint);
-    box-shadow: 0 2px 8px var(--primary-tint);
-}
-
-/* Tab count badges. app.js sets the tone via .fail / .neutral, with the
-   unqualified class carrying the warn tone. */
 .tab-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.15rem;
-    height: 1.15rem;
-    padding: 0 0.3rem;
-    border-radius: var(--radius-full);
-    font-size: 0.7rem;
-    font-weight: 800;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
     line-height: 1;
-    background: var(--warn-bg);
-    border: 1px solid var(--warn-border);
-    color: var(--warn-fg);
+    padding: 3px 6px;
+    border-radius: var(--radius-full);
+    background: var(--fail-bg);
+    border: 1px solid var(--fail-border);
+    color: var(--fail-fg);
+}
+
+.tab-badge.neutral {
+    background: var(--surface-alt);
+    border-color: var(--surface-border);
+    color: var(--text-secondary);
 }
 
 .tab-badge.fail {
@@ -1180,69 +975,42 @@ kbd {
     color: var(--fail-fg);
 }
 
-.tab-badge.neutral {
-    background: var(--info-bg);
-    border-color: var(--info-border);
-    color: var(--info-fg);
-}
-
-/* Must be explicit: the display above would otherwise beat the UA
-   [hidden] rule and pin every badge open at zero. */
 .tab-badge[hidden] { display: none; }
 
-/* Tab Panels — only the active one renders. Losing this rule stacked all
-   ten panels into a single 5000px scroll and made the tab strip decorative. */
-.tab-panels {
-    margin-bottom: 1.5rem;
-}
+.tab-panels { min-width: 0; }
 
-.tab-panel {
-    display: none;
-    animation: fadeIn 0.3s ease;
-}
-
-.tab-panel.active {
-    display: block;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
 .tab-panel pre {
-    background: var(--surface-alt);
+    background: var(--bg-app);
     border: 1px solid var(--surface-border);
-    padding: 1rem;
     border-radius: var(--radius-sm);
+    padding: 0.85rem;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
     color: var(--text-secondary);
 }
 
-/* Export Menu */
-.export-menu {
-    position: relative;
-    display: inline-block;
-}
-
+/* Export dropdown. */
+.export-menu { position: relative; }
 .export-menu[hidden] { display: none; }
 
 .export-menu-list {
     position: absolute;
     right: 0;
     top: calc(100% + 6px);
+    min-width: 210px;
+    padding: 5px;
     background: var(--surface);
     border: 1px solid var(--surface-border);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
+    z-index: 20;
     display: flex;
     flex-direction: column;
-    min-width: 190px;
-    padding: 0.35rem;
-    gap: 0.15rem;
-    z-index: 50;
 }
 
 .export-menu-list[hidden] { display: none; }
@@ -1250,394 +1018,331 @@ kbd {
 .export-menu-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
     width: 100%;
-    padding: 0.55rem 0.7rem;
-    background: transparent;
+    padding: 0.5rem 0.65rem;
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-family: var(--font-sans);
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8125rem;
     text-align: left;
+    cursor: pointer;
     transition: var(--transition);
 }
 
-.export-menu-item:hover,
-.export-menu-item:focus-visible {
-    background: var(--surface-alt);
-    color: var(--primary-light);
-    outline: none;
-}
-
-.export-menu-item:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--primary);
-}
+.export-menu-item:hover { background: var(--surface-alt); color: var(--text-primary); }
+.export-menu-item:focus-visible { outline-offset: -2px; }
+.export-menu-item .icon { color: var(--text-muted); }
+.export-menu-item:hover .icon { color: var(--primary); }
 
 /* --------------------------------------------------------------------------
-   10. STATUS NOTIFICATION TOAST
-   Fixed, not static: as a static block it appended "Analysis complete" as
-   plain text at the very bottom of a 5000px document.
+   9. RESULT PRIMITIVES (emitted by app.js at runtime)
    -------------------------------------------------------------------------- */
-.status-notification {
-    position: fixed;
-    bottom: 2rem;
-    left: 2rem;
-    max-width: 420px;
-    padding: 0.9rem 1.35rem;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    font-size: 0.9rem;
-    display: none;
-    z-index: 1000;
-    border: 1px solid var(--surface-border);
-    border-left-width: 4px;
-    background: var(--surface);
-    color: var(--text-primary);
-    box-shadow: var(--shadow-lg);
-    animation: slideIn 0.3s ease;
+.r-stack { display: flex; flex-direction: column; gap: 0.9rem; }
+
+.r-empty {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    padding: 1.25rem 0;
+    text-align: center;
 }
 
-.status-notification.show {
-    display: block;
-}
-
-/* Tinted from tokens rather than the old hardcoded pastels, which were a
-   light-mode palette dropped onto a near-black page. */
-.status-notification.info {
-    background: var(--info-bg);
-    border-color: var(--info-border);
-    border-left-color: var(--info-fg);
-    color: var(--info-fg);
-}
-
-.status-notification.success {
-    background: var(--pass-bg);
-    border-color: var(--pass-border);
-    border-left-color: var(--pass-fg);
-    color: var(--pass-fg);
-}
-
-.status-notification.error {
-    background: var(--fail-bg);
-    border-color: var(--fail-border);
-    border-left-color: var(--fail-fg);
-    color: var(--fail-fg);
-}
-
-@keyframes slideIn {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-@media (max-width: 640px) {
-    .status-notification {
-        left: 1rem;
-        right: 1rem;
-        max-width: none;
-    }
-}
-
-/* --------------------------------------------------------------------------
-   11. RESULT RENDERING PRIMITIVES
-   Emitted by displayResults() / displayBatchResults() in app.js.
-   -------------------------------------------------------------------------- */
-.r-stack {
-    display: grid;
-    gap: 1rem;
-}
-
-.r-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-}
-
-.r-grid-3 {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-}
-
-@media (max-width: 700px) {
-    .r-grid-3 { grid-template-columns: 1fr; }
-}
-
-/* Key/value row used by the Request and Response summary tabs. */
-.r-kv {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 1rem;
-    padding: 0.7rem 0.85rem;
-    background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-}
-
-.r-kv dt,
-.r-kv .r-kv-key,
-.r-key {
-    font-weight: 600;
-    color: var(--kv-key);
-}
-
-.r-kv dd,
-.r-kv .r-kv-val,
-.r-val {
-    font-family: var(--font-mono);
-    color: var(--text-secondary);
-    text-align: right;
-    word-break: break-word;
-    margin: 0;
-}
-
-/* Status surfaces. One class per tone; every colour comes from a token. */
-.status-card {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-start;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1rem;
-    background: var(--surface-alt);
-    border: 1px solid var(--surface-border);
-    border-left: 4px solid var(--surface-border-hover);
-    border-radius: var(--radius-sm);
-}
-
-.status-card .status-icon { line-height: 1.4; flex: 0 0 auto; }
-.status-card .status-body { flex: 1; min-width: 0; }
-.status-card .status-title { font-weight: 700; margin-bottom: 0.2rem; }
-
-.status-card.pass { background: var(--pass-bg); border-color: var(--pass-border); border-left-color: var(--pass-fg); color: var(--pass-fg); }
-.status-card.warn { background: var(--warn-bg); border-color: var(--warn-border); border-left-color: var(--warn-fg); color: var(--warn-fg); }
-.status-card.fail { background: var(--fail-bg); border-color: var(--fail-border); border-left-color: var(--fail-fg); color: var(--fail-fg); }
-.status-card.info { background: var(--info-bg); border-color: var(--info-border); border-left-color: var(--info-fg); color: var(--info-fg); }
-
-/* Numeric tiles (matched / warnings / failures, batch KPIs). */
-.stat-tile {
-    padding: 1rem;
-    border: 1px solid var(--surface-border);
-    border-left: 4px solid var(--primary);
-    border-radius: var(--radius-sm);
-    background: var(--surface-alt);
-}
-
-.stat-tile .stat-num {
-    font-family: var(--font-heading);
-    font-size: 1.5rem;
-    font-weight: 800;
-    line-height: 1.2;
-}
-
-/* No opacity dimming here: at 0.8 the label dropped to 3.3–4.2:1 against
-   the tinted tile. Size, weight and letter-spacing carry the hierarchy. */
-.stat-tile .stat-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-top: 0.2rem;
-}
-
-.stat-tile.pass { background: var(--pass-bg); border-color: var(--pass-border); border-left-color: var(--pass-fg); color: var(--pass-fg); }
-.stat-tile.warn { background: var(--warn-bg); border-color: var(--warn-border); border-left-color: var(--warn-fg); color: var(--warn-fg); }
-.stat-tile.fail { background: var(--fail-bg); border-color: var(--fail-border); border-left-color: var(--fail-fg); color: var(--fail-fg); }
-.stat-tile.info { background: var(--info-bg); border-color: var(--info-border); border-left-color: var(--info-fg); color: var(--info-fg); }
-.stat-tile.neutral { border-left-color: var(--primary); color: var(--text-primary); }
-
-/* Banner used for the compare verdict. Tinted, not saturated, so the
-   heading keeps a readable contrast ratio in both themes. */
-.verdict-banner {
-    padding: 1.25rem 1.5rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--surface-border);
-    border-left: 6px solid var(--primary);
-    background: var(--surface-alt);
-}
-
-.verdict-banner h3 {
-    font-family: var(--font-heading);
-    margin: 0 0 0.35rem 0;
-    font-size: 1.15rem;
-}
-
-/* Same reason as .stat-label: 0.85 opacity put this at 3.7:1 in light mode. */
-.verdict-banner p { margin: 0; font-size: 0.9rem; }
-.verdict-banner.pass { background: var(--pass-bg); border-color: var(--pass-border); border-left-color: var(--pass-fg); color: var(--pass-fg); }
-.verdict-banner.warn { background: var(--warn-bg); border-color: var(--warn-border); border-left-color: var(--warn-fg); color: var(--warn-fg); }
-.verdict-banner.fail { background: var(--fail-bg); border-color: var(--fail-border); border-left-color: var(--fail-fg); color: var(--fail-fg); }
-
-/* --------------------------------------------------------------------------
-   11b. OVERVIEW HERO CARDS
-   The request/response summary cards at the top of the Overview tab. These
-   were ~90 lines of inline style in the pre-token purple/pink scheme, so
-   they rendered identically in both themes and clashed with everything
-   around them. Both gradients are dark enough for white body text and
-   white-on-tint tile text at AA.
-   -------------------------------------------------------------------------- */
+/* Overview hero card. The 2px top rule is semantic: orange = request side,
+   cyan = response side, matching the tab icons. */
 .hero-card {
-    padding: 2rem;
-    border-radius: var(--radius-lg);
-    color: #ffffff;
-    box-shadow: var(--shadow-md);
+    background: var(--surface-alt);
+    border: 1px solid var(--surface-border);
+    border-top: 2px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: 1.1rem 1.25rem;
 }
 
-.hero-card.request {
-    background: linear-gradient(135deg, #c2410c 0%, #7c2d12 100%);
-}
-
-.hero-card.response {
-    background: linear-gradient(135deg, #be185d 0%, #b91c1c 100%);
-}
+.hero-card.response { border-top-color: var(--info-fg); }
 
 .hero-head {
     display: flex;
+    align-items: baseline;
     justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .hero-title {
     font-family: var(--font-heading);
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
 }
 
-.hero-sub {
-    margin: 0.5rem 0 0 0;
-    font-size: 0.9rem;
-    opacity: 0.92;
-}
+.hero-sub { font-size: 0.8125rem; color: var(--text-muted); }
 
-.hero-figure { text-align: right; flex: 0 0 auto; }
+.hero-figure { margin: 0.9rem 0; }
 
 .hero-num {
-    font-family: var(--font-heading);
-    font-size: 2rem;
-    font-weight: 800;
+    font-family: var(--font-mono);
+    font-size: 1.9rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     line-height: 1.1;
+    color: var(--text-primary);
 }
 
-.hero-caption { font-size: 0.85rem; opacity: 0.92; }
+.hero-caption { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.15rem; }
 
 .hero-tiles {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.9rem;
 }
 
-@media (max-width: 700px) {
-    .hero-tiles { grid-template-columns: 1fr; }
-}
-
-/* Darkens the gradient beneath rather than lightening it, so the white
-   label text keeps its contrast wherever the tile sits on the sweep. */
 .hero-tile {
-    background: rgba(0, 0, 0, 0.28);
-    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-sm);
+    padding: 0.6rem 0.75rem;
+    min-width: 0;
 }
 
 .hero-tile.center { text-align: center; }
 
 .hero-tile-label {
-    font-size: 0.75rem;
-    opacity: 0.92;
-    margin-bottom: 0.5rem;
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.2rem;
 }
 
 .hero-tile-val {
-    font-size: 0.85rem;
     font-family: var(--font-mono);
-    word-break: break-all;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
 }
 
 .hero-tile-num {
-    font-family: var(--font-heading);
-    font-size: 1.5rem;
-    font-weight: 800;
-    line-height: 1.2;
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
-.hero-meter { margin-top: 1.5rem; }
+/* CTV confidence meter — real data, so it earns a track. */
+.hero-meter { margin-top: 1rem; }
 
 .hero-meter-head {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
 }
 
-.hero-meter-head strong {
-    font-family: var(--font-heading);
-    font-size: 1rem;
-    font-weight: 800;
-}
+.hero-meter-head strong { font-family: var(--font-mono); color: var(--text-primary); }
 
 .hero-track {
-    background: rgba(0, 0, 0, 0.3);
+    height: 8px;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-full);
-    height: 10px;
     overflow: hidden;
 }
 
 .hero-fill {
-    background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
     height: 100%;
-    transition: width 0.3s ease;
+    background: var(--primary);
+    border-radius: var(--radius-full);
+    transition: width 0.4s ease;
 }
 
-.hero-note {
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
-    opacity: 0.9;
-}
+.hero-note { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; }
 
 .hero-pill {
-    padding: 0.25rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
     border-radius: var(--radius-full);
+    background: var(--primary-tint);
+    color: var(--primary-light);
+    font-family: var(--font-mono);
     font-size: 0.75rem;
-    font-weight: 700;
-    background: rgba(0, 0, 0, 0.3);
 }
 
-/* Distribution bars in the batch overview. */
-.dist-row { margin-bottom: 0.5rem; }
+/* Verdict banner: the one place a result panel raises its voice. */
+.verdict-banner {
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    padding: 0.9rem 1.1rem;
+}
 
-.dist-head {
+.verdict-banner h3 {
+    font-family: var(--font-heading);
+    font-size: 0.9375rem;
+    font-weight: 650;
+    margin-bottom: 0.15rem;
+}
+
+.verdict-banner p { font-size: 0.8125rem; color: var(--text-secondary); }
+
+.verdict-banner.pass { background: var(--pass-bg); border-color: var(--pass-border); }
+.verdict-banner.pass h3 { color: var(--pass-fg); }
+.verdict-banner.warn { background: var(--warn-bg); border-color: var(--warn-border); }
+.verdict-banner.warn h3 { color: var(--warn-fg); }
+.verdict-banner.fail { background: var(--fail-bg); border-color: var(--fail-border); }
+.verdict-banner.fail h3 { color: var(--fail-fg); }
+
+/* Status cards: findings list. State rides on the icon and a 3px edge. */
+.status-card {
     display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    font-size: 0.85rem;
-    margin-bottom: 0.2rem;
-    color: var(--text-secondary);
-}
-
-.dist-track {
+    gap: 0.75rem;
+    align-items: flex-start;
     background: var(--surface-alt);
     border: 1px solid var(--surface-border);
-    border-radius: var(--radius-full);
-    height: 8px;
-    overflow: hidden;
+    border-left-width: 3px;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.9rem;
 }
 
-.dist-fill {
-    background: linear-gradient(90deg, var(--primary), var(--accent-amber));
-    height: 100%;
+.status-card .status-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-top: 0.1rem;
 }
 
-/* Per-entry batch table. */
+.status-card .status-body {
+    min-width: 0;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.status-card .status-title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    margin-bottom: 0.1rem;
+}
+
+.status-card.pass { border-left-color: var(--pass-fg); }
+.status-card.pass .status-icon { color: var(--pass-fg); }
+.status-card.warn { border-left-color: var(--warn-fg); }
+.status-card.warn .status-icon { color: var(--warn-fg); }
+.status-card.fail { border-left-color: var(--fail-fg); }
+.status-card.fail .status-icon { color: var(--fail-fg); }
+.status-card.info { border-left-color: var(--info-fg); }
+.status-card.info .status-icon { color: var(--info-fg); }
+
+/* Key-value rows. */
+.r-kv {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--surface-border);
+    font-size: 0.8125rem;
+}
+
+.r-kv:last-child { border-bottom: none; }
+
+.r-kv-key {
+    font-family: var(--font-mono);
+    color: var(--kv-key);
+    flex: 0 0 auto;
+}
+
+.r-kv-val {
+    color: var(--text-primary);
+    text-align: right;
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+
+/* Grids. */
+.r-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.9rem;
+}
+
+.r-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+/* Stat tiles: the number is the content, state colors the number only. */
+.stat-tile {
+    background: var(--surface-alt);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-sm);
+    padding: 0.85rem 1rem;
+    text-align: center;
+}
+
+.stat-tile .stat-num {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+.stat-tile .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.stat-tile.pass .stat-num { color: var(--pass-fg); }
+.stat-tile.warn .stat-num { color: var(--warn-fg); }
+.stat-tile.fail .stat-num { color: var(--fail-fg); }
+.stat-tile.info .stat-num { color: var(--info-fg); }
+.stat-tile.neutral .stat-num { color: var(--text-primary); }
+
+/* KPI cards (batch aggregates). */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.9rem;
+}
+
+.kpi-card {
+    background: var(--surface-alt);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-sm);
+    padding: 0.85rem 1rem;
+}
+
+.kpi-label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.kpi-value {
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Tables. */
 .r-table-wrap {
     overflow-x: auto;
     border: 1px solid var(--surface-border);
@@ -1647,224 +1352,194 @@ kbd {
 .r-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
-}
-
-.r-table th,
-.r-table td {
-    text-align: left;
-    padding: 0.55rem 0.7rem;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--surface-border);
+    font-size: 0.8125rem;
 }
 
 .r-table th {
-    position: sticky;
-    top: 0;
-    background: var(--surface-alt);
-    color: var(--text-primary);
-    font-family: var(--font-heading);
-    font-weight: 800;
+    text-align: left;
+    font-weight: 600;
     font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-bottom: 2px solid var(--surface-border);
+    color: var(--text-muted);
+    background: var(--surface-alt);
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--surface-border);
+    white-space: nowrap;
 }
 
-.r-table td { color: var(--text-secondary); font-family: var(--font-mono); }
+.r-table td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--surface-border);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+}
+
 .r-table tbody tr:last-child td { border-bottom: none; }
 .r-table tbody tr:hover td { background: var(--surface-alt); }
-.r-table tr.has-error td { background: var(--fail-bg); color: var(--fail-fg); }
+.r-table tr.has-error td { background: var(--fail-bg); }
 
-.r-empty {
-    padding: 2rem;
-    text-align: center;
-    color: var(--text-muted);
+/* Distribution meters (batch): real frequencies, so they earn tracks. */
+.dist-row { margin-bottom: 0.6rem; }
+
+.dist-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
 }
 
-/* --------------------------------------------------------------------------
-   12. ICONS
-   Sprite symbols defined in index.html, referenced with <use>. Sized in em
-   so they scale with their button's text, coloured with currentColor so
-   they inherit hover/active states.
-   -------------------------------------------------------------------------- */
-.icon {
-    width: 1.15em;
-    height: 1.15em;
+.dist-track {
+    height: 6px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.dist-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: var(--radius-full);
+}
+
+/* Insight rows. */
+.insight {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.insight:last-child { border-bottom: none; }
+
+.insight-label {
     flex: 0 0 auto;
-    vertical-align: -0.15em;
-    color: currentColor;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-xs);
+    background: var(--primary-tint);
+    color: var(--primary-light);
+    margin-top: 0.1rem;
 }
 
-.icon-lg {
-    width: 1.5em;
-    height: 1.5em;
-    vertical-align: -0.25em;
-}
-
-.icon-xl {
-    width: 2.4em;
-    height: 2.4em;
-    vertical-align: middle;
+.insight-text {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 /* --------------------------------------------------------------------------
-   13. MICRO-INTERACTIONS
-   Subtle, and disabled entirely for users who ask for reduced motion.
+   10. STATUS NOTIFICATION
    -------------------------------------------------------------------------- */
-.status-card,
-.stat-tile {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+.status-notification {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 200;
+    max-width: 360px;
+    padding: 0.7rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-left-width: 3px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-.status-card:hover,
-.stat-tile:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+.status-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
-.btn .icon,
-.tab-button .icon {
-    transition: transform 0.15s ease;
+.status-notification.success { border-left-color: var(--pass-fg); }
+.status-notification.error { border-left-color: var(--fail-fg); }
+.status-notification.info { border-left-color: var(--info-fg); }
+
+/* --------------------------------------------------------------------------
+   11. RESPONSIVE
+   -------------------------------------------------------------------------- */
+@media (max-width: 1400px) {
+    :root { --page-pad: 1.25rem; }
 }
 
-.btn:hover .icon { transform: scale(1.08); }
+/* Below the fixed-height threshold the page scrolls normally and the two
+   panels stack. */
+@media (max-width: 1180px) {
+    .content.split-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
 
+    .results-section { min-height: 320px; }
+}
+
+@media (max-width: 900px) {
+    .header-link-text { display: none; }
+    .compare-grid { grid-template-columns: minmax(0, 1fr); }
+    .r-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+    .source-strip { flex-direction: column; align-items: stretch; }
+    .source-group { flex-wrap: wrap; }
+    .mode-hint .kbd-group { display: none; }
+}
+
+@media (max-width: 640px) {
+    :root { --page-pad: 0.85rem; }
+
+    .header-main { gap: 0.5rem; }
+    .header-title { display: none; }
+
+    .mode-option { padding: 0.35rem 0.55rem; }
+
+    .section { padding: 0.9rem; }
+    .results-tabs { padding: 0 0.9rem; margin: 0 -0.9rem 1rem; }
+
+    .r-grid-3 { grid-template-columns: minmax(0, 1fr); }
+    .hero-num { font-size: 1.5rem; }
+}
+
+/* --------------------------------------------------------------------------
+   12. MOTION & PRINT
+   -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
-        animation-duration: 0.001ms !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
-        transition-duration: 0.001ms !important;
-    }
-
-    .status-card:hover,
-    .stat-tile:hover,
-    .btn-primary:hover,
-    .header-btn:hover,
-    .header-link:hover,
-    .sample-pill:hover {
-        transform: none;
     }
 }
 
-/* --------------------------------------------------------------------------
-   14. RESPONSIVE
-   The page had one breakpoint (1024px) and nothing below it, so on a phone
-   the 2rem gutters and 1.75rem card padding ate ~30% of the width and the
-   header, mode bar and editor toolbar all wrapped into tall stacks.
-   -------------------------------------------------------------------------- */
-@media (max-width: 900px) {
-    /* Two deliberate header rows: identity and actions on top, the full-width
-       mode control beneath. Cramming all three groups onto one line here left
-       the segmented control a ~90px scrolling sliver. syncHeaderOffset()
-       measures whatever this comes to, so the sticky tab strip follows. */
-    .header-main {
-        flex-wrap: wrap;
-        row-gap: 0.65rem;
-    }
-
-    .mode-selector {
-        order: 3;
-        width: 100%;
-        flex: 1 0 100%;
-    }
-
-    .selector-options { flex: 1; }
-    .mode-option { flex: 1; justify-content: center; }
-
-    .section-header { flex-wrap: wrap; }
-}
-
-@media (max-width: 640px) {
-    :root {
-        --page-pad: 1rem;
-    }
-
-    .main { padding-top: 1.25rem; gap: 1.25rem; }
-
-    .section {
-        padding: 1.15rem;
-        border-radius: var(--radius-lg);
-    }
-
-    /* Kept in step with .section's padding — these are the pull-out rows. */
-    .results-tabs {
-        padding-left: 1.15rem;
-        padding-right: 1.15rem;
-        margin-left: -1.15rem;
-        margin-right: -1.15rem;
-    }
-
-    .button-group {
-        padding-left: 1.15rem;
-        padding-right: 1.15rem;
-        margin-left: -1.15rem;
-        margin-right: -1.15rem;
-        margin-bottom: -1.15rem;
-        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-    }
-
-    .header-title { font-size: 1.25rem; }
-    .logo-icon { width: 36px; height: 36px; }
-
-    /* Frees ~70px for the title, which was otherwise ellipsised to
-       "Bid Analy…". The link keeps its icon, its title attribute and its
-       accessible name. */
-    .header-link-text { display: none; }
-    .header-link { padding: 0.55rem 0.7rem; }
-
-    /* The label is redundant once the pills own their own row. */
-    .selector-label { display: none; }
-
-    /* Text over icons: four icon+label pills need ~96px each and only ~80px
-       is available, so the row scrolled and Batch sat off-screen. The words
-       are the part that identifies the mode, so the glyphs go. */
-    .mode-option { padding: 0.5rem 0.35rem; font-size: 0.8rem; }
-    .mode-option .icon { display: none; }
-
-    /* Icons alone would be ambiguous, so the labels stay and the hint goes. */
-    .mode-hint { display: none; }
-
-    .source-strip,
-    .editor-toolbar { padding: 0.5rem 0.65rem; }
-
-    .editor-actions { gap: 0.3rem; }
-    .btn-small { padding: 0.35rem 0.55rem; }
-
-    .code-input { min-height: 220px; font-size: 0.8rem; }
-    .btn-large { width: 100%; padding: 0.85rem 1rem; }
-
-    .hero-card { padding: 1.25rem; }
-    .hero-head { flex-wrap: wrap; }
-    .r-grid-3 { grid-template-columns: 1fr; }
-}
-
-/* --------------------------------------------------------------------------
-   15. PRINT (Export → Printable report opens the browser dialog)
-   -------------------------------------------------------------------------- */
 @media print {
-    .animated-bg,
-    .header-right,
-    .mode-selector,
+    .header,
     .input-section,
     .button-group,
-    .export-menu,
     .results-tabs,
-    .status-notification {
-        display: none !important;
-    }
+    .export-menu,
+    .status-notification { display: none !important; }
 
-    .tab-panel { display: block !important; }
-
-    body {
-        background: #ffffff;
-        color: #000000;
-    }
+    .app { height: auto !important; }
+    body { background: #ffffff; color: #211b17; }
 
     .section {
-        box-shadow: none;
-        border-color: #cccccc;
+        border: none;
+        padding: 0;
     }
+
+    /* Every panel prints, not just the active tab. */
+    .tab-panel { display: block !important; margin-bottom: 1.5rem; }
+    .tab-panels { overflow: visible !important; }
 }
